@@ -145,10 +145,11 @@ using (public.is_business_member(business_id));
 create policy "business_settings_update_owner" on public.business_settings for update to authenticated
 using (public.is_business_owner(business_id)) with check (public.is_business_owner(business_id));
 
+-- audit_logs est en lecture seule pour les rôles applicatifs. Aucune politique
+-- INSERT, UPDATE ou DELETE n'est créée : les écritures sont réservées aux
+-- fonctions SQL contrôlées et aux futurs triggers.
 create policy "audit_logs_select_member" on public.audit_logs for select to authenticated
 using (public.is_business_member(business_id));
-create policy "audit_logs_insert_self_member" on public.audit_logs for insert to authenticated
-with check (user_id = auth.uid() and public.is_business_member(business_id));
 
 -- L'onboarding est atomique. Le navigateur ne choisit jamais un business_id :
 -- la fonction crée l'entreprise puis rattache exclusivement auth.uid() comme owner.
@@ -205,5 +206,5 @@ $$;
 revoke all on function public.complete_onboarding(text, text, text, text, text, text, public.declaration_period, public.vat_regime, boolean) from public;
 grant execute on function public.complete_onboarding(text, text, text, text, text, text, public.declaration_period, public.vat_regime, boolean) to authenticated;
 
-comment on table public.audit_logs is 'Journal transverse. Les écritures comptables inaltérables seront conçues dans une migration ultérieure.';
+comment on table public.audit_logs is 'Journal en lecture seule pour les rôles applicatifs. Les insertions sont réservées aux fonctions SQL contrôlées et aux futurs triggers. Les écritures comptables inaltérables seront conçues dans une migration ultérieure.';
 comment on function public.complete_onboarding(text, text, text, text, text, text, public.declaration_period, public.vat_regime, boolean) is 'Crée atomiquement le profil, l’entreprise, le propriétaire et ses paramètres sans accepter de business_id client.';
