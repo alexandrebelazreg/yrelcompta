@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { Sale, SaleChannel, SaleStatus } from "@/types/sales";
-import { calculateSalesTotals } from "./calculations";
+import { calculateSalesTotals, type SalesTotalsSource } from "./calculations";
 
 const saleSelect = `id,business_id,reference,ordered_on,channel,customer_name,notes,status,subtotal_cents,shipping_cents,discount_cents,total_cents,validated_at,cancelled_at,cancellation_reason,
 sale_items(id,description,quantity,unit_price_cents,line_total_cents,position),
@@ -38,8 +38,34 @@ export async function getSale(businessId: string, saleId: string): Promise<Sale 
 }
 
 export async function getSalesOverview(businessId: string) {
-  const sales = await listSales(businessId);
-  return { sales, totals: calculateSalesTotals(sales) };
+  const [sales, totals] = await Promise.all([listSales(businessId), getGlobalSalesTotals(businessId)]);
+  return { sales, totals };
+}
+
+const aggregationPageSize = 1000;
+
+async function getGlobalSalesTotals(businessId: string) {
+  const supabase = await createClient();
+  if (!supabase) return calculateSalesTotals([]);
+
+  const sales: SalesTotalsSource[] = [];
+  for (let from = 0; ; from += aggregationPageSize) {
+    const { data, error } = await supabase
+      .from("sales")
+      .select("status,total_cents,payments(gross_amount_cents,platform_fee_cents,refunds(amount_cents))")
+      .eq("business_id", businessId)
+      .order("id", { ascending: true })
+      .range(from, from + aggregationPageSize - 1);
+    if (error) {
+      console.error("Calcul global des ventes impossible", { code: error.code });
+      throw new Error("SALES_AGGREGATION_FAILED");
+    }
+    const page = (data ?? []) as unknown as SalesTotalsSource[];
+    sales.push(...page);
+    if (page.length < aggregationPageSize) break;
+  }
+
+  return calculateSalesTotals(sales);
 }
 
 function parisMonthBounds(date = new Date()): { start: string; end: string } {

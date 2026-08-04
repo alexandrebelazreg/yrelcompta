@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateMonthlyRevenue, calculateSaleFinancials, calculateSaleSubtotal, calculateSaleTotal, formatEuroCents, parseFrenchMoneyToCents } from "./calculations";
+import { calculateMonthlyRevenue, calculateSaleFinancials, calculateSalesTotals, calculateSaleSubtotal, calculateSaleTotal, formatEuroCents, parseFrenchMoneyToCents, type SalesTotalsSource } from "./calculations";
 
 describe("parseFrenchMoneyToCents", () => {
   it.each([["0", 0], ["12", 1200], ["12,5", 1250], ["12,50", 1250], ["12.50", 1250], ["1 234,56", 123456]])("convertit %s", (input, expected) => expect(parseFrenchMoneyToCents(input)).toBe(expected));
@@ -22,6 +22,25 @@ describe("calculs d'une vente", () => {
     expect(partial.refundedCents).toBe(3000); expect(partial.remainingCents).toBe(0); expect(total.netCollectedCents).toBe(0); expect(total.remainingCents).toBe(0);
   });
   it("force le reste à zéro pour une vente annulée", () => expect(calculateSaleFinancials({ status: "cancelled", total_cents: 5000, payments: [] }).remainingCents).toBe(0));
+});
+
+describe("reste global à encaisser", () => {
+  const sale = (status: SalesTotalsSource["status"], totalCents: number, grossPaidCents = 0): SalesTotalsSource => ({
+    status,
+    total_cents: totalCents,
+    payments: grossPaidCents > 0 ? [{ gross_amount_cents: grossPaidCents, platform_fee_cents: 0, refunds: [] }] : [],
+  });
+
+  it("exclut un brouillon de 100 €", () => expect(calculateSalesTotals([sale("draft", 10000)]).remainingCents).toBe(0));
+  it("compte 100 € pour une vente validée non encaissée", () => expect(calculateSalesTotals([sale("validated", 10000)]).remainingCents).toBe(10000));
+  it("compte 60 € pour une vente validée encaissée à hauteur de 40 €", () => expect(calculateSalesTotals([sale("validated", 10000, 4000)]).remainingCents).toBe(6000));
+  it("exclut une vente annulée", () => expect(calculateSalesTotals([sale("cancelled", 10000)]).remainingCents).toBe(0));
+  it("prend en compte plus de 100 ventes", () => {
+    const sales = Array.from({ length: 125 }, () => sale("validated", 1000));
+    const totals = calculateSalesTotals(sales);
+    expect(totals.validatedSalesCents).toBe(125000);
+    expect(totals.remainingCents).toBe(125000);
+  });
 });
 
 describe("indicateur mensuel", () => {

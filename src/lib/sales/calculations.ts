@@ -25,6 +25,7 @@ export function calculateSaleTotal(items: Array<{ quantity: number; unit_price_c
 
 type FinancialPayment = { gross_amount_cents: number; platform_fee_cents: number; refunds: Array<{ amount_cents: number }> };
 type DatedPayment = FinancialPayment & { received_on: string; refunds: Array<{ amount_cents: number; refunded_on: string }> };
+export type SalesTotalsSource = { status: Sale["status"]; total_cents: number; payments: FinancialPayment[] };
 
 export function calculateSaleFinancials(sale: { status: Sale["status"]; total_cents: number; payments: FinancialPayment[] }): SaleFinancialSummary {
   const grossPaidCents = sale.payments.reduce((sum, payment) => sum + payment.gross_amount_cents, 0);
@@ -41,7 +42,7 @@ export function calculateSaleFinancials(sale: { status: Sale["status"]; total_ce
   };
 }
 
-export function calculateSalesTotals(sales: Sale[]): SalesTotals {
+export function calculateSalesTotals(sales: SalesTotalsSource[]): SalesTotals {
   return sales.reduce<SalesTotals>((totals, sale) => {
     const summary = calculateSaleFinancials(sale);
     if (sale.status === "validated") totals.validatedSalesCents += sale.total_cents;
@@ -51,7 +52,7 @@ export function calculateSalesTotals(sales: Sale[]): SalesTotals {
     totals.netDepositedCents += summary.netDepositedCents;
     totals.refundedCents += summary.refundedCents;
     totals.netCollectedCents += summary.netCollectedCents;
-    totals.remainingCents += summary.remainingCents;
+    if (sale.status === "validated") totals.remainingCents += summary.remainingCents;
     return totals;
   }, { validatedSalesCents: 0, totalCents: 0, grossPaidCents: 0, platformFeesCents: 0, netDepositedCents: 0, refundedCents: 0, netCollectedCents: 0, remainingCents: 0 });
 }

@@ -6,6 +6,7 @@ import { saveSaleDraftAction } from "@/lib/sales/actions";
 import { calculateSaleSubtotal, formatEuroCents, parseFrenchMoneyToCents } from "@/lib/sales/calculations";
 import { saleChannelLabels } from "@/lib/sales/labels";
 import { saleFormSchema } from "@/lib/sales/validation";
+import { getTodayInParis as today } from "@/lib/utils/date";
 import type { Sale } from "@/types/sales";
 import { Field, TextareaField } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
@@ -13,7 +14,6 @@ import { SubmitButton } from "@/components/ui/submit-button";
 
 interface EditableItem { key: string; description: string; quantity: string; unitPrice: string; }
 const moneyInput = (cents: number) => (cents / 100).toFixed(2).replace(".", ",");
-const today = () => new Date().toISOString().slice(0, 10);
 
 export function SaleForm({ sale }: { sale?: Sale }) {
   const initialItems = sale?.sale_items.map((item) => ({ key: item.id ?? crypto.randomUUID(), description: item.description, quantity: String(item.quantity), unitPrice: moneyInput(item.unit_price_cents) }))
