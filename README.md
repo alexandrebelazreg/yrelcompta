@@ -4,7 +4,7 @@ YrelCompta est une application web française de gestion simplifiée pour une mi
 
 > La gestion simple de votre micro-entreprise de bijoux.
 
-Cette première version fournit le socle : authentification, création de l’entreprise, isolation des données, navigation et tableau de bord vide. Elle ne réalise encore aucun calcul comptable.
+L’application fournit l’authentification, la création de l’entreprise et une première version du suivi des ventes, encaissements et remboursements. Elle ne réalise aucun calcul fiscal ou social.
 
 ## Stack technique
 
@@ -52,7 +52,14 @@ supabase link --project-ref VOTRE_REFERENCE
 supabase db push
 ```
 
-La migration crée `profiles`, `businesses`, `business_members`, `business_settings` et `audit_logs`, ainsi que les types, index, triggers, politiques RLS et le RPC atomique `complete_onboarding`.
+La migration initiale crée `profiles`, `businesses`, `business_members`, `business_settings` et `audit_logs`. La migration `20260805010000_sales_payments.sql` ajoute les ventes, lignes, encaissements, remboursements et leurs RPC sécurisés.
+
+Avant d’appliquer une nouvelle migration sur un projet lié, inspectez toujours le plan :
+
+```bash
+npx supabase db push --dry-run
+npx supabase db push
+```
 
 ## Variables d’environnement
 
@@ -113,8 +120,33 @@ N’ajoutez aucune clé Supabase privée ou `service_role` dans Netlify pour cet
 - Un membre ne voit que les données de ses entreprises ; seul un propriétaire peut modifier l’entreprise et ses paramètres.
 - `.gitignore` exclut tous les fichiers `.env` sauf le modèle vide `.env.example`.
 
+## Ventes et encaissements
+
+Le module permet de créer et modifier une vente en brouillon, puis de la valider définitivement. Une vente validée conserve ses lignes, montants, date et canal. Les encaissements et remboursements sont également immuables : une erreur d’encaissement est corrigée par un remboursement de type `correction`.
+
+Tous les montants sont enregistrés sous forme d’entiers représentant des centimes d’euro. Le montant brut payé par la cliente alimente le chiffre d’affaires suivi. Une commission de plateforme est affichée séparément et ne réduit jamais ce montant brut :
+
+- brut encaissé : somme payée par la cliente ;
+- commission : frais Etsy, Stripe, SumUp ou autre ;
+- net versé : brut moins commission ;
+- remboursement : sortie liée à un encaissement précis.
+
+Les tables métier sont en lecture seule via l’API Supabase. Toutes les écritures passent par des fonctions RPC `security definer` qui vérifient l’utilisateur, l’entreprise, le rôle et les invariants monétaires avant d’écrire dans le journal d’audit.
+
+### Parcours manuel de test
+
+1. Connectez-vous avec un propriétaire ou un membre de l’entreprise.
+2. Ouvrez **Ventes**, créez un brouillon avec plusieurs lignes et vérifiez le total affiché.
+3. Modifiez le brouillon, puis validez-le.
+4. Vérifiez que ses lignes et montants ne sont plus modifiables.
+5. Enregistrez un encaissement partiel avec une commission et contrôlez les montants brut et net.
+6. Complétez l’encaissement, puis enregistrez un remboursement partiel ou total.
+7. Vérifiez que le remboursement n’augmente pas le reste à encaisser.
+8. Après remboursement intégral, annulez la vente avec un motif.
+9. Vérifiez le chiffre d’affaires encaissé du mois sur le tableau de bord.
+
 ## Limites de cette version
 
-Les pages Ventes, Dépenses, Produits, Documents, Registres et Paramètres sont des écrans d’attente protégés. Il n’existe encore ni tables métier correspondantes, ni factures, ni stocks, ni déclarations, ni taux fiscaux ou sociaux, ni calcul comptable. Les montants du tableau de bord sont volontairement des états vides à `0,00 €`.
+Le module ne génère pas encore de facture, ne gère ni clients complets, ni stock, ni produits persistés, ni dépenses ou justificatifs. Il ne transmet aucune déclaration. Les indicateurs sont uniquement des outils de suivi et aucun taux fiscal, social ou de TVA n’est calculé.
 
 Les futures écritures comptables validées devront être rendues inaltérables par une conception dédiée ; `audit_logs` ne constitue pas encore ce registre.
