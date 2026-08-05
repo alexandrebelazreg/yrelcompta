@@ -1,0 +1,9 @@
+import type { DocumentKind, ExpenseCategory, ExpenseCostBehavior, ExpenseNature, ExpensePaymentMethod, ExpenseRefundKind, ExpenseStatus, RecurrenceFrequency } from "@/types/expenses";
+export const expenseStatusLabels: Record<ExpenseStatus,string> = { draft:"Brouillon", validated:"Validée", cancelled:"Annulée" };
+export const expenseCategoryLabels: Record<ExpenseCategory,string> = { raw_materials:"Matières premières",packaging:"Emballages",shipping:"Expédition",marketplace_fees:"Frais de marketplace",software:"Logiciels",marketing:"Marketing",market_fees:"Frais de marché",equipment:"Équipement",insurance:"Assurance",bank_fees:"Frais bancaires",telecommunications:"Télécommunications",professional_services:"Services professionnels",taxes_social:"Taxes et cotisations",travel:"Déplacements",office:"Bureau",training:"Formation",other:"Autre" };
+export const expenseNatureLabels: Record<ExpenseNature,string> = { operating:"Fonctionnement",investment:"Investissement",tax_social:"Taxe ou charge sociale" };
+export const expenseCostBehaviorLabels: Record<ExpenseCostBehavior,string> = { fixed:"Fixe",variable:"Variable",exceptional:"Exceptionnelle" };
+export const expensePaymentMethodLabels: Record<ExpensePaymentMethod,string> = { cash:"Espèces",card:"Carte",bank_transfer:"Virement",paypal:"PayPal",cheque:"Chèque",direct_debit:"Prélèvement",other:"Autre" };
+export const expenseRefundKindLabels: Record<ExpenseRefundKind,string> = { supplier_refund:"Remboursement fournisseur",credit_note:"Avoir",correction:"Correction" };
+export const documentKindLabels: Record<DocumentKind,string> = { supplier_invoice:"Facture fournisseur",receipt:"Ticket",bank_proof:"Preuve bancaire",credit_note:"Avoir",contract:"Contrat",other:"Autre" };
+export const recurrenceFrequencyLabels: Record<RecurrenceFrequency,string> = { monthly:"Mensuelle",quarterly:"Trimestrielle",yearly:"Annuelle" };
