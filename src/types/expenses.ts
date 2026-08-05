@@ -7,7 +7,7 @@ export type ExpenseRefundKind = "supplier_refund" | "credit_note" | "correction"
 export type DocumentKind = "supplier_invoice" | "receipt" | "bank_proof" | "credit_note" | "contract" | "other";
 export type RecurrenceFrequency = "monthly" | "quarterly" | "yearly";
 
-export interface Supplier { id: string; business_id: string; name: string; email: string | null; phone: string | null; website: string | null; notes: string | null; is_active: boolean; }
+export interface Supplier { id: string; business_id: string; name: string; email: string | null; phone: string | null; website: string | null; address_line_1: string | null; address_line_2: string | null; postal_code: string | null; city: string | null; country_code: string; registration_number: string | null; notes: string | null; is_active: boolean; }
 export interface ExpenseRefund { id: string; expense_payment_id: string; received_on: string; amount_cents: number; business_amount_cents: number; kind: ExpenseRefundKind; reason: string; external_reference: string | null; }
 export interface ExpensePayment { id: string; paid_on: string; bank_debited_on: string | null; amount_cents: number; business_amount_cents: number; method: ExpensePaymentMethod; external_reference: string | null; notes: string | null; expense_refunds: ExpenseRefund[]; }
 export interface ExpenseDocument { id: string; kind: DocumentKind; storage_path: string; original_name: string; mime_type: string; size_bytes: number; created_at: string; }

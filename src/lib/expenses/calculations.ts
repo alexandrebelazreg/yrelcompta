@@ -8,6 +8,20 @@ export function calculateProfessionalAmount(totalCents:number,basisPoints:number
   if (!Number.isSafeInteger(result)) throw new Error("Montant trop élevé");
   return result;
 }
+export function calculateCumulativeProfessionalAllocation(previousGrossCents:number,previousBusinessCents:number,newGrossCents:number,basisPoints:number):number {
+  if(newGrossCents<=0)throw new Error("Montant de paiement invalide");
+  const cumulative=calculateProfessionalAmount(previousGrossCents+newGrossCents,basisPoints);
+  const allocation=cumulative-previousBusinessCents;
+  if(allocation<0||allocation>newGrossCents)throw new Error("Allocation professionnelle incohérente");
+  return allocation;
+}
+export function calculateCumulativeRefundAllocation(paymentGrossCents:number,paymentBusinessCents:number,previousRefundGrossCents:number,previousRefundBusinessCents:number,newRefundGrossCents:number):number {
+  if(paymentGrossCents<=0||newRefundGrossCents<=0||previousRefundGrossCents+newRefundGrossCents>paymentGrossCents)throw new Error("Remboursement invalide");
+  const cumulative=Math.floor(((previousRefundGrossCents+newRefundGrossCents)*paymentBusinessCents+Math.floor(paymentGrossCents/2))/paymentGrossCents);
+  const allocation=cumulative-previousRefundBusinessCents;
+  if(allocation<0||allocation>newRefundGrossCents||previousRefundBusinessCents+allocation>paymentBusinessCents)throw new Error("Allocation de remboursement incohérente");
+  return allocation;
+}
 export function calculateExpenseFinancials(expense:ExpenseTotalsSource):ExpenseFinancialSummary {
   const grossPaidCents=expense.expense_payments.reduce((s,p)=>s+p.amount_cents,0);
   const businessPaidCents=expense.expense_payments.reduce((s,p)=>s+p.business_amount_cents,0);
