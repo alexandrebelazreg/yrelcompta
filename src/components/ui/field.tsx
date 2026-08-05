@@ -21,8 +21,8 @@ export function TextareaField({ label, error, id, className = "", ...props }: Te
   return (
     <div className="field">
       <label htmlFor={fieldId}>{label}</label>
-      <textarea id={fieldId} className={`input min-h-24 ${className}`} aria-invalid={Boolean(error)} {...props} />
-      {error && <p className="field-error">{error}</p>}
+      <textarea id={fieldId} className={`input min-h-24 ${className}`} aria-invalid={Boolean(error)} aria-describedby={error ? `${fieldId}-error` : undefined} {...props} />
+      {error && <p className="field-error" id={`${fieldId}-error`}>{error}</p>}
     </div>
   );
 }

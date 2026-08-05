@@ -6,6 +6,9 @@
 - RLS est obligatoire sur toute table accessible depuis l’application.
 - Une clé Supabase `service_role` ne doit jamais être exposée au navigateur ni ajoutée aux variables publiques.
 - Toute fonction métier doit isoler les données par `business_id` et vérifier l’appartenance côté base.
+- Les montants monétaires persistés sont des entiers en centimes d’euro, jamais des nombres décimaux.
+- Les écritures métier sensibles passent par des RPC `security definer` contrôlés ; les tables restent en lecture seule via RLS pour les rôles applicatifs.
+- Les ventes validées, encaissements et remboursements sont inaltérables ; une correction financière passe par un remboursement tracé.
 - Les opérations comptables validées seront ultérieurement conçues pour être inaltérables.
 - Aucun taux fiscal, social ou de TVA ne doit être codé en dur sans mécanisme de configuration versionné.
 - Les modifications doivent rester petites, testées et documentées.
