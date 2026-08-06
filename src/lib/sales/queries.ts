@@ -4,13 +4,17 @@ import type { Sale, SaleChannel, SaleProductOption, SaleStatus } from "@/types/s
 import { calculateSalesTotals, sumSafeAmounts, toSafeIntegerAmount, type SalesTotalsSource } from "./calculations";
 import { loadAllSaleProductPages } from "./product-pagination";
 
-const saleSelect = `id,business_id,reference,ordered_on,channel,customer_name,notes,status,subtotal_cents,shipping_cents,discount_cents,total_cents,manufacturing_cost_cents,manufacturing_margin_cents,costing_complete,validated_at,cancelled_at,cancellation_reason,
+const saleSelect = `id,business_id,reference,ordered_on,channel,customer_name,notes,status,subtotal_cents,shipping_cents,discount_cents,total_cents,manufacturing_cost_cents,manufacturing_margin_cents,costing_complete,costing_evaluated,validated_at,cancelled_at,cancellation_reason,
 sale_items(id,description,quantity,unit_price_cents,line_total_cents,product_id,product_name_snapshot,product_sku_snapshot,unit_raw_materials_cost_cents,unit_material_loss_cost_cents,unit_labor_cost_cents,unit_packaging_cost_cents,unit_manufacturing_cost_cents,line_manufacturing_cost_cents,line_margin_before_discount_cents,position,product:products!sale_items_product_business_fk(name,sku,is_active)),
 payments(id,received_on,bank_deposited_on,gross_amount_cents,platform_fee_cents,net_deposit_cents,method,external_reference,notes,refunds(id,payment_id,refunded_on,amount_cents,kind,reason))`;
 
 function normalizeSale(value: unknown): Sale {
   const sale = value as Record<string, unknown>;
   const nullableAmount = (amount: unknown) => amount === null || amount === undefined ? null : toSafeIntegerAmount(amount);
+  const booleanValue = (field: unknown) => {
+    if (typeof field !== "boolean") throw new Error("SALE_DATA_LOAD_FAILED");
+    return field;
+  };
   const items = ((sale.sale_items ?? []) as Array<Record<string, unknown>>).map((item) => ({
     ...item,
     quantity: toSafeIntegerAmount(item.quantity),
@@ -40,6 +44,8 @@ function normalizeSale(value: unknown): Sale {
     total_cents: toSafeIntegerAmount(sale.total_cents),
     manufacturing_cost_cents: nullableAmount(sale.manufacturing_cost_cents),
     manufacturing_margin_cents: nullableAmount(sale.manufacturing_margin_cents),
+    costing_complete: booleanValue(sale.costing_complete),
+    costing_evaluated: booleanValue(sale.costing_evaluated),
     sale_items: items,
     payments,
   } as Sale;

@@ -63,23 +63,28 @@ alter table public.sales
   add column manufacturing_cost_cents bigint,
   add column manufacturing_margin_cents bigint,
   add column costing_complete boolean not null default false,
+  add column costing_evaluated boolean not null default false,
   add constraint sales_manufacturing_snapshot_consistent check (
     (
-      costing_complete = false
-      and manufacturing_cost_cents is null
-      and manufacturing_margin_cents is null
+      (
+        costing_complete = false
+        and manufacturing_cost_cents is null
+        and manufacturing_margin_cents is null
+      )
+      or
+      (
+        costing_complete = true
+        and costing_evaluated = true
+        and manufacturing_cost_cents is not null
+        and manufacturing_cost_cents >= 0
+        and manufacturing_margin_cents is not null
+        and manufacturing_margin_cents::numeric =
+          subtotal_cents::numeric
+          - discount_cents::numeric
+          - manufacturing_cost_cents::numeric
+      )
     )
-    or
-    (
-      costing_complete = true
-      and manufacturing_cost_cents is not null
-      and manufacturing_cost_cents >= 0
-      and manufacturing_margin_cents is not null
-      and manufacturing_margin_cents::numeric =
-        subtotal_cents::numeric
-        - discount_cents::numeric
-        - manufacturing_cost_cents::numeric
-    )
+    and (costing_evaluated = false or status <> 'draft')
   );
 
 -- Point de calcul unique. Il reste inaccessible aux rôles applicatifs et
@@ -575,6 +580,7 @@ begin
       manufacturing_cost_cents = total_cost::bigint,
       manufacturing_margin_cents = margin::bigint,
       costing_complete = true,
+      costing_evaluated = true,
       status = 'validated',
       validated_at = now()
     where id = p_sale_id and business_id = p_business_id;
@@ -583,6 +589,7 @@ begin
       manufacturing_cost_cents = null,
       manufacturing_margin_cents = null,
       costing_complete = false,
+      costing_evaluated = true,
       status = 'validated',
       validated_at = now()
     where id = p_sale_id and business_id = p_business_id;
@@ -596,7 +603,7 @@ begin
     'sale',
     p_sale_id,
     jsonb_build_object('status', 'draft'),
-    jsonb_build_object('status', 'validated', 'costing_complete', linked_count = item_count)
+    jsonb_build_object('status', 'validated', 'costing_evaluated', true, 'costing_complete', linked_count = item_count)
   );
 exception
   when numeric_value_out_of_range then
@@ -626,6 +633,7 @@ begin
       or new.manufacturing_cost_cents is distinct from old.manufacturing_cost_cents
       or new.manufacturing_margin_cents is distinct from old.manufacturing_margin_cents
       or new.costing_complete is distinct from old.costing_complete
+      or new.costing_evaluated is distinct from old.costing_evaluated
     then
       raise exception 'SALE_IMMUTABLE' using errcode = '55000';
     end if;
@@ -645,3 +653,4 @@ grant execute on function public.validate_sale(uuid, uuid) to authenticated;
 comment on column public.sale_items.product_id is 'Produit courant associé au brouillon ; figé avec les snapshots lors de la validation.';
 comment on column public.sale_items.unit_manufacturing_cost_cents is 'Coût de fabrication historique unitaire en centimes, jamais recalculé après validation.';
 comment on column public.sales.manufacturing_margin_cents is 'Sous-total marchandises moins remise globale moins coût de fabrication ; livraison et frais commerciaux exclus.';
+comment on column public.sales.costing_evaluated is 'Vrai uniquement après une validation ayant évalué explicitement les snapshots de coût, même si la vente reste incomplète.';

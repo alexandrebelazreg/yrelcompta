@@ -68,6 +68,16 @@ export type HistoricalCostItem = {
   unit_manufacturing_cost_cents: number | null;
 };
 
+export type SaleCostingState = "draft" | "historical-unassessed" | "evaluated-incomplete" | "evaluated-complete";
+
+export function getSaleCostingState(sale: Pick<Sale, "status" | "costing_evaluated" | "costing_complete">): SaleCostingState {
+  if (sale.costing_complete && !sale.costing_evaluated) throw new Error("INCONSISTENT_SALE_COSTING_STATE");
+  if (sale.status === "draft" && sale.costing_evaluated) throw new Error("INCONSISTENT_SALE_COSTING_STATE");
+  if (sale.status === "draft") return "draft";
+  if (!sale.costing_evaluated) return "historical-unassessed";
+  return sale.costing_complete ? "evaluated-complete" : "evaluated-incomplete";
+}
+
 export function hasIncompleteHistoricalCost(items: HistoricalCostItem[]): boolean {
   return items.length === 0 || items.some((item) => item.product_id === null || item.line_manufacturing_cost_cents === null || item.unit_manufacturing_cost_cents === null);
 }

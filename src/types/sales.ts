@@ -69,6 +69,7 @@ export interface Sale {
   manufacturing_cost_cents: number | null;
   manufacturing_margin_cents: number | null;
   costing_complete: boolean;
+  costing_evaluated: boolean;
   validated_at: string | null;
   cancelled_at: string | null;
   cancellation_reason: string | null;

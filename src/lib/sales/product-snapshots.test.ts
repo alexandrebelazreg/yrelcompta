@@ -8,9 +8,11 @@ const migrationPath = join(root, "supabase/migrations/20260807010000_sales_produ
 const sql = readFileSync(migrationPath, "utf8");
 const form = readFileSync(join(root, "src/components/sales/sale-form.tsx"), "utf8");
 const detail = readFileSync(join(root, "src/app/(app)/ventes/[id]/page.tsx"), "utf8");
+const costDisplay = readFileSync(join(root, "src/components/sales/manufacturing-cost-display.tsx"), "utf8");
 const queries = readFileSync(join(root, "src/lib/sales/queries.ts"), "utf8");
 const actions = readFileSync(join(root, "src/lib/sales/actions.ts"), "utf8");
 const readme = readFileSync(join(root, "README.md"), "utf8");
+const packageJson = readFileSync(join(root, "package.json"), "utf8");
 
 function functionSql(name: string, nextMarker: string): string {
   return sql.slice(sql.indexOf(`function public.${name}`), sql.indexOf(nextMarker, sql.indexOf(`function public.${name}`)));
@@ -31,6 +33,7 @@ describe("migration des snapshots de vente", () => {
     expect(migrations.at(-1)).toBe("20260807010000_sales_product_snapshots.sql");
     expect(migrations.filter((name) => name > "20260806210000_products_costing.sql")).toEqual(["20260807010000_sales_product_snapshots.sql"]);
   });
+  it("ne contient aucun script appliquant la migration", () => expect(packageJson).not.toContain("supabase db push"));
   it("ajoute l'association produit isolée par entreprise avec suppression interdite", () => {
     expect(sql).toContain("foreign key (product_id, business_id)");
     expect(sql).toContain("references public.products(id, business_id) on delete restrict");
@@ -121,6 +124,34 @@ describe("migration des snapshots de vente", () => {
     expect(beforeFunctions).not.toMatch(/update public\.sales/i);
     expect(beforeFunctions).not.toMatch(/update public\.sale_items/i);
   });
+  it("laisse les anciennes ventes et les brouillons non évalués par défaut", () => {
+    expect(sql).toContain("add column costing_evaluated boolean not null default false");
+    expect(functionSql("create_sale_draft", "create or replace function public.update_sale_draft")).not.toContain("costing_evaluated = true");
+  });
+  it("marque comme évaluées les ventes complètes, mixtes ou entièrement libres", () => {
+    const validation = functionSql("validate_sale", "create or replace function public.protect_sale_mutations");
+    expect(validation.match(/costing_evaluated = true/g)).toHaveLength(2);
+    expect(validation).toMatch(/costing_complete = true,\s+costing_evaluated = true,\s+status = 'validated'/);
+    expect(validation).toMatch(/costing_complete = false,\s+costing_evaluated = true,\s+status = 'validated'/);
+  });
+  it("valide une vente entièrement produit comme évaluée et complète", () => {
+    const finalization = functionSql("validate_sale", "create or replace function public.protect_sale_mutations").slice(functionSql("validate_sale", "create or replace function public.protect_sale_mutations").indexOf("if linked_count = item_count then"));
+    expect(finalization).toMatch(/if linked_count = item_count then[\s\S]*costing_complete = true,[\s\S]*costing_evaluated = true/);
+  });
+  it("valide une vente mixte comme évaluée et incomplète", () => {
+    const finalization = functionSql("validate_sale", "create or replace function public.protect_sale_mutations").slice(functionSql("validate_sale", "create or replace function public.protect_sale_mutations").indexOf("if linked_count = item_count then"));
+    expect(finalization).toMatch(/else[\s\S]*costing_complete = false,[\s\S]*costing_evaluated = true/);
+  });
+  it("valide une vente entièrement libre comme évaluée et incomplète", () => {
+    const validation = functionSql("validate_sale", "create or replace function public.protect_sale_mutations");
+    expect(validation).toContain("if item_count < 1");
+    expect(validation).toContain("if linked_count = item_count then");
+    expect(validation).toMatch(/else[\s\S]*costing_complete = false,[\s\S]*costing_evaluated = true/);
+  });
+  it("interdit une vente complète non évaluée et un brouillon évalué", () => {
+    expect(sql).toContain("costing_complete = true\n        and costing_evaluated = true");
+    expect(sql).toContain("and (costing_evaluated = false or status <> 'draft')");
+  });
   it("valide atomiquement et écrit un audit sans montant détaillé", () => {
     const validation = functionSql("validate_sale", "create or replace function public.protect_sale_mutations");
     expect(validation).toContain("for update");
@@ -132,10 +163,22 @@ describe("migration des snapshots de vente", () => {
     expect(protection).toContain("manufacturing_cost_cents is distinct from old.manufacturing_cost_cents");
     expect(protection).toContain("manufacturing_margin_cents is distinct from old.manufacturing_margin_cents");
     expect(protection).toContain("costing_complete is distinct from old.costing_complete");
+    expect(protection).toContain("costing_evaluated is distinct from old.costing_evaluated");
   });
   it("ne remplace ni remboursement ni annulation et ne recalcule donc aucun snapshot", () => {
     expect(sql).not.toContain("create or replace function public.record_refund");
     expect(sql).not.toContain("create or replace function public.cancel_sale");
+  });
+  it("conserve costing_evaluated pendant une annulation contrôlée", () => {
+    const protection = functionSql("protect_sale_mutations", "revoke all on function public.protect_sale_mutations");
+    expect(protection).toContain("new.costing_evaluated is distinct from old.costing_evaluated");
+    expect(sql).not.toContain("create or replace function public.cancel_sale");
+  });
+  it("audite le marqueur d'évaluation sans montant détaillé", () => {
+    const validation = functionSql("validate_sale", "create or replace function public.protect_sale_mutations");
+    expect(validation).toContain("'costing_evaluated', true");
+    expect(validation).not.toContain("'manufacturing_cost_cents'");
+    expect(validation).not.toContain("'manufacturing_margin_cents'");
   });
   it("révoque la fonction interne à public et authenticated", () => {
     expect(sql).toContain("revoke all on function public.calculate_product_costing_internal(uuid, uuid) from public");
@@ -154,11 +197,14 @@ describe("interface et sécurité applicative", () => {
   });
   it("explique le moment du snapshot dans le formulaire", () => expect(form).toContain("Le coût de fabrication courant sera figé lors de la validation définitive."));
   it("affiche les coûts historiques sans substituer le coût courant", () => {
-    expect(detail).toContain("Coût unitaire historique");
-    expect(detail).toContain("Marge de fabrication après remise, avant frais commerciaux, cotisations et fiscalité");
+    expect(costDisplay).toContain("Coût unitaire historique");
+    expect(costDisplay).toContain("Marge de fabrication après remise, avant frais commerciaux, cotisations et fiscalité");
     expect(detail).not.toContain("get_product_costing");
   });
-  it("affiche une marge indisponible sans faux zéro", () => expect(detail).toContain("Marge totale indisponible : au moins une ligne ne possède pas de coût de fabrication historique."));
+  it("n'infère plus une vente historique depuis la présence de snapshots", () => {
+    expect(detail).not.toContain("hasAnySnapshot");
+    expect(costDisplay).toContain("getSaleCostingState");
+  });
   it("utilise une requête légère paginée sans listProducts", () => {
     expect(queries).toContain('select("id,name,sku,sale_price_cents,is_active")');
     expect(queries).toContain("loadAllSaleProductPages");
@@ -166,6 +212,10 @@ describe("interface et sécurité applicative", () => {
   });
   it("convertit explicitement les nouveaux bigint", () => {
     for (const column of ["manufacturing_cost_cents", "manufacturing_margin_cents", "unit_manufacturing_cost_cents", "line_manufacturing_cost_cents", "line_margin_before_discount_cents"]) expect(queries).toContain(`nullableAmount(${column.startsWith("manufacturing") ? "sale" : "item"}.${column})`);
+  });
+  it("normalise explicitement les deux booléens de coût", () => {
+    expect(queries).toContain("costing_complete: booleanValue(sale.costing_complete)");
+    expect(queries).toContain("costing_evaluated: booleanValue(sale.costing_evaluated)");
   });
   it("journalise uniquement les codes d'erreur côté application", () => {
     expect(actions).toContain('console.error("Mutation de vente refusée", { code: error.code })');
