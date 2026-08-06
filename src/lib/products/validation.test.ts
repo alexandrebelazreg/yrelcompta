@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{parseQuantityToMilliunits}from"./validation";
+describe("milli-unités",()=>{it("convertit les quantités fractionnaires sans flottants",()=>{expect(parseQuantityToMilliunits("1,25")).toBe(1250);expect(parseQuantityToMilliunits("12.345")).toBe(12345)});it("refuse plus de trois décimales et zéro",()=>{expect(()=>parseQuantityToMilliunits("1,0001")).toThrow();expect(()=>parseQuantityToMilliunits("0")).toThrow()})});
