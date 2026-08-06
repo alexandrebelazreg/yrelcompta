@@ -52,7 +52,7 @@ supabase link --project-ref VOTRE_REFERENCE
 supabase db push
 ```
 
-La migration initiale crée `profiles`, `businesses`, `business_members`, `business_settings` et `audit_logs`. La migration `20260805010000_sales_payments.sql` ajoute les ventes, lignes, encaissements, remboursements et leurs RPC sécurisés.
+La migration initiale crée `profiles`, `businesses`, `business_members`, `business_settings` et `audit_logs`. La migration `20260805010000_sales_payments.sql` ajoute les ventes, lignes, encaissements et remboursements. La migration `20260805180000_expenses_documents.sql` ajoute les dépenses, fournisseurs, paiements, remboursements fournisseurs, justificatifs privés et modèles récurrents.
 
 Avant d’appliquer une nouvelle migration sur un projet lié, inspectez toujours le plan :
 
@@ -60,6 +60,8 @@ Avant d’appliquer une nouvelle migration sur un projet lié, inspectez toujour
 npx supabase db push --dry-run
 npx supabase db push
 ```
+
+Le `--dry-run` doit toujours être relu avant l’application future. Cette commande ne doit jamais être lancée automatiquement par l’application ou par une tâche de développement.
 
 ## Variables d’environnement
 
@@ -145,8 +147,36 @@ Les tables métier sont en lecture seule via l’API Supabase. Toutes les écrit
 8. Après remboursement intégral, annulez la vente avec un motif.
 9. Vérifiez le chiffre d’affaires encaissé du mois sur le tableau de bord.
 
+## Dépenses et justificatifs
+
+Une dépense décrit la facture ou l’achat fournisseur. Elle est distincte de son paiement réel et d’un éventuel remboursement :
+
+- un brouillon reste modifiable et n’alimente aucun reste global à payer ;
+- une dépense validée est figée et peut recevoir plusieurs paiements et justificatifs ;
+- un paiement ou remboursement fournisseur est définitif et ne peut être modifié ni supprimé ;
+- un remboursement réduit les dépenses nettes du mois où il est reçu, sans recréer de reste à payer ;
+- une annulation contrôlée reste possible uniquement lorsque le paiement net est nul.
+
+La « Part professionnelle pour le suivi interne » répartit les montants avec une précision de 0,01 %, sans constituer un conseil ou calcul fiscal. Les catégories couvrent notamment matières premières, emballages, expédition, logiciels, marketing, équipement, assurances, frais bancaires, services professionnels, déplacements, bureau et formation. Les commissions déjà suivies sur un encaissement de vente ne sont jamais recréées automatiquement comme dépenses.
+
+Les justificatifs sont enregistrés dans le bucket privé `expense-documents` (PDF ou images autorisées, 10 Mo maximum). L’application génère uniquement des URL signées d’une minute ; aucun fichier n’a d’URL publique permanente. L’ajout se fait depuis une dépense. Un justificatif de dépense validée ne peut plus être retiré.
+
+Les charges récurrentes sont uniquement des modèles manuels. Elles ne sont pas comptabilisées avant la création explicite d’un brouillon et aucune tâche planifiée ne les génère automatiquement.
+
+### Parcours manuel de test des dépenses
+
+1. Créez un fournisseur puis une dépense en brouillon avec une part professionnelle de 50 %.
+2. Modifiez le brouillon, joignez puis retirez un justificatif privé.
+3. Validez la dépense et vérifiez que ses informations sont figées.
+4. Ajoutez un justificatif après validation et vérifiez qu’il ne peut plus être retiré.
+5. Enregistrez un paiement partiel puis un remboursement fournisseur lié à ce paiement.
+6. Vérifiez que le remboursement ne modifie pas le reste à payer.
+7. Créez un modèle récurrent puis générez manuellement un brouillon.
+8. Contrôlez les dépenses nettes payées et les justificatifs manquants sur le tableau de bord.
+9. Ouvrez **Documents** et vérifiez que l’aperçu utilise une URL temporaire.
+
 ## Limites de cette version
 
-Le module ne génère pas encore de facture, ne gère ni clients complets, ni stock, ni produits persistés, ni dépenses ou justificatifs. Il ne transmet aucune déclaration. Les indicateurs sont uniquement des outils de suivi et aucun taux fiscal, social ou de TVA n’est calculé.
+Le module ne propose ni OCR, rapprochement ou connexion bancaire, calcul de coût de revient, stock, amortissements, TVA récupérable, calcul URSSAF, génération planifiée des récurrences ou comptabilité certifiée. Il ne transmet aucune déclaration. Les indicateurs sont uniquement des outils de suivi et aucun taux fiscal, social ou de TVA n’est calculé.
 
 Les futures écritures comptables validées devront être rendues inaltérables par une conception dédiée ; `audit_logs` ne constitue pas encore ce registre.

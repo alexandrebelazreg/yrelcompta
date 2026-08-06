@@ -1,0 +1,2 @@
+import{ExpenseForm}from"@/components/expenses/expense-form";import{getAuthenticatedContext}from"@/lib/auth/context";import{listSuppliers}from"@/lib/expenses/queries";
+export default async function NewExpensePage(){const{context}=await getAuthenticatedContext();if(!context.business)return null;return <><header className="page-header"><div><p className="eyebrow">Nouveau brouillon</p><h1>Nouvelle dépense</h1><p>Le brouillon restera modifiable jusqu’à sa validation.</p></div></header><ExpenseForm suppliers={await listSuppliers(context.business.id)}/></>}
