@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExpenseStatusBadge } from "@/components/expenses/status-badge";
+import { ExpenseDocumentUploadForm } from "@/components/expenses/document-upload-form";
 import {
   CancelExpenseForm,
   ExpensePaymentForm,
@@ -10,7 +11,6 @@ import { ConfirmSubmitButton } from "@/components/sales/confirm-submit-button";
 import {
   deleteDraftExpenseDocumentAction,
   deleteExpenseDraftAction,
-  uploadExpenseDocumentAction,
   validateExpenseAction,
 } from "@/lib/expenses/actions";
 import {
@@ -202,36 +202,7 @@ export default async function ExpensePage({
           <h2>Justificatifs privés</h2>
         </div>
         {e.status !== "cancelled" && (
-          <form
-            action={uploadExpenseDocumentAction}
-            className="compact-form upload-form"
-          >
-            <input type="hidden" name="expenseId" value={e.id} />
-            <div className="field">
-              <label htmlFor="kind">Type</label>
-              <select className="input" id="kind" name="kind">
-                {Object.entries(documentKindLabels).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="file">Fichier privé (10 Mo maximum)</label>
-              <input
-                className="input"
-                id="file"
-                name="file"
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif"
-                required
-              />
-            </div>
-            <button className="button" type="submit">
-              Joindre
-            </button>
-          </form>
+          <ExpenseDocumentUploadForm expenseId={e.id} />
         )}
         {e.expense_documents.length === 0 ? (
           <p className="history-empty">Aucun justificatif.</p>
