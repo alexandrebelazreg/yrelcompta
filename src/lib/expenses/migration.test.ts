@@ -23,11 +23,22 @@ describe("migration dépenses et justificatifs", () => {
 
   it("applique les arrondis professionnels cumulatifs aux paiements et remboursements", () => {
     expect(sql).toContain(
-      "bamt:=((paid+p_amount_cents)*e.professional_share_basis_points+5000)/10000-business_paid",
+      "bamt:=(round(((paid::numeric+p_amount_cents::numeric)*e.professional_share_basis_points::numeric)/10000::numeric)-business_paid::numeric)::bigint",
     );
     expect(sql).toContain(
-      "bamt:=((refunded+p_amount_cents)*p.business_amount_cents+(p.amount_cents/2))/p.amount_cents-business_refunded",
+      "bamt:=(round(((refunded::numeric+p_amount_cents::numeric)*p.business_amount_cents::numeric)/p.amount_cents::numeric)-business_refunded::numeric)::bigint",
     );
+  });
+
+  it("distingue le nettoyage compensatoire de la suppression d'un document lié", () => {
+    expect(sql).toContain("e.status<>'cancelled' and public.can_manage_business(e.business_id)");
+    expect(sql).toContain(
+      "e.status='draft' or not exists(select 1 from public.documents d where d.business_id=e.business_id and d.storage_bucket='expense-documents' and d.storage_path=name)",
+    );
+    const deleteAllowed=(status:"draft"|"validated"|"cancelled",linked:boolean)=>status!=="cancelled"&&(status==="draft"||!linked);
+    expect(deleteAllowed("validated",true)).toBe(false);
+    expect(deleteAllowed("validated",false)).toBe(true);
+    expect(deleteAllowed("draft",true)).toBe(true);
   });
 
   it("conserve les sept tables métier sous RLS sans politique d'écriture directe", () => {
