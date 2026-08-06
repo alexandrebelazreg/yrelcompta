@@ -129,10 +129,12 @@ begin
   return nid;
 end $$;
 create function public.update_material(p_material_id uuid,p_business_id uuid,p_name text,p_internal_reference text,p_supplier_id uuid,p_unit public.material_unit,p_package_quantity_milliunits bigint,p_package_cost_cents bigint,p_notes text,p_is_active boolean) returns void language plpgsql security definer set search_path='' as $$
-declare actor uuid:=public.assert_product_manager(p_business_id);
+declare actor uuid:=public.assert_product_manager(p_business_id); current_unit public.material_unit;
 begin
-  update public.materials set name=btrim(p_name),internal_reference=nullif(btrim(p_internal_reference),''),supplier_id=p_supplier_id,unit=p_unit,package_quantity_milliunits=p_package_quantity_milliunits,package_cost_cents=p_package_cost_cents,notes=nullif(btrim(p_notes),''),is_active=p_is_active where id=p_material_id and business_id=p_business_id;
+  select unit into current_unit from public.materials where id=p_material_id and business_id=p_business_id for update;
   if not found then raise exception 'material not found' using errcode='P0002'; end if;
+  if current_unit<>p_unit and exists(select 1 from public.product_materials where material_id=p_material_id and business_id=p_business_id) then raise exception 'material unit is immutable once used' using errcode='55000'; end if;
+  update public.materials set name=btrim(p_name),internal_reference=nullif(btrim(p_internal_reference),''),supplier_id=p_supplier_id,unit=p_unit,package_quantity_milliunits=p_package_quantity_milliunits,package_cost_cents=p_package_cost_cents,notes=nullif(btrim(p_notes),''),is_active=p_is_active where id=p_material_id and business_id=p_business_id;
   insert into public.audit_logs(business_id,user_id,action_type,entity_name,entity_id,new_data) values(p_business_id,actor,'updated','material',p_material_id,jsonb_build_object('name',btrim(p_name),'is_active',p_is_active));
 end $$;
 create function public.archive_material(p_material_id uuid,p_business_id uuid) returns void language plpgsql security definer set search_path='' as $$
@@ -165,19 +167,43 @@ begin
   insert into public.audit_logs(business_id,user_id,action_type,entity_name,entity_id) values(p_business_id,actor,'archived','product',p_product_id);
 end $$;
 
-create function public.replace_product_recipe(p_product_id uuid,p_business_id uuid,p_lines jsonb) returns void language plpgsql security definer set search_path='' as $$
-declare actor uuid:=public.assert_product_manager(p_business_id);
+create function public.validate_product_recipe(p_business_id uuid,p_lines jsonb) returns void language plpgsql security definer set search_path='' as $$
 begin
-  perform 1 from public.products where id=p_product_id and business_id=p_business_id for update;
-  if not found then raise exception 'product not found' using errcode='P0002'; end if;
   if p_lines is null or jsonb_typeof(p_lines)<>'array' then raise exception 'recipe must be an array' using errcode='22023'; end if;
   if exists(select 1 from jsonb_array_elements(p_lines) l where coalesce(l->>'material_id','')!~*'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' or coalesce(l->>'quantity_milliunits','')!~'^[1-9][0-9]*$' or coalesce(l->>'position','')!~'^[1-9][0-9]*$') then raise exception 'invalid recipe line' using errcode='22023'; end if;
   if exists(select 1 from jsonb_array_elements(p_lines) l where (l->>'quantity_milliunits')::numeric>9000000000000000 or (l->>'position')::numeric>32767) then raise exception 'recipe line out of range' using errcode='22003'; end if;
   if exists(select l->>'material_id' from jsonb_array_elements(p_lines) l group by 1 having count(*)>1) or exists(select l->>'position' from jsonb_array_elements(p_lines) l group by 1 having count(*)>1) then raise exception 'duplicate recipe line' using errcode='23505'; end if;
   if exists(select 1 from jsonb_array_elements(p_lines) l where not exists(select 1 from public.materials m where m.id=(l->>'material_id')::uuid and m.business_id=p_business_id)) then raise exception 'cross-business material denied' using errcode='42501'; end if;
+end $$;
+
+create function public.replace_product_recipe(p_product_id uuid,p_business_id uuid,p_lines jsonb) returns void language plpgsql security definer set search_path='' as $$
+declare actor uuid:=public.assert_product_manager(p_business_id);
+begin
+  perform 1 from public.products where id=p_product_id and business_id=p_business_id for update;
+  if not found then raise exception 'product not found' using errcode='P0002'; end if;
+  perform public.validate_product_recipe(p_business_id,p_lines);
   delete from public.product_materials where product_id=p_product_id and business_id=p_business_id;
   insert into public.product_materials(business_id,product_id,material_id,quantity_milliunits,position) select p_business_id,p_product_id,(l->>'material_id')::uuid,(l->>'quantity_milliunits')::bigint,(l->>'position')::smallint from jsonb_array_elements(p_lines) l;
   insert into public.audit_logs(business_id,user_id,action_type,entity_name,entity_id,new_data) values(p_business_id,actor,'updated','product_recipe',p_product_id,jsonb_build_object('line_count',jsonb_array_length(p_lines)));
+end $$;
+
+create function public.save_product_with_recipe(p_product_id uuid,p_business_id uuid,p_name text,p_sku text,p_category public.product_category,p_sale_price_cents bigint,p_labor_minutes integer,p_packaging_cost_cents bigint,p_material_loss_basis_points integer,p_notes text,p_is_active boolean,p_lines jsonb) returns uuid language plpgsql security definer set search_path='' as $$
+declare actor uuid:=public.assert_product_manager(p_business_id); saved_id uuid:=coalesce(p_product_id,gen_random_uuid());
+begin
+  -- Cette validation complète précède strictement toute écriture produit ou recette.
+  perform public.validate_product_recipe(p_business_id,p_lines);
+  if p_product_id is null then
+    insert into public.products(id,business_id,name,sku,category,sale_price_cents,labor_minutes,packaging_cost_cents,material_loss_basis_points,notes,is_active,created_by) values(saved_id,p_business_id,btrim(p_name),nullif(btrim(p_sku),''),p_category,p_sale_price_cents,p_labor_minutes,p_packaging_cost_cents,p_material_loss_basis_points,nullif(btrim(p_notes),''),true,actor);
+    insert into public.audit_logs(business_id,user_id,action_type,entity_name,entity_id,new_data) values(p_business_id,actor,'created','product',saved_id,jsonb_build_object('name',btrim(p_name)));
+  else
+    update public.products set name=btrim(p_name),sku=nullif(btrim(p_sku),''),category=p_category,sale_price_cents=p_sale_price_cents,labor_minutes=p_labor_minutes,packaging_cost_cents=p_packaging_cost_cents,material_loss_basis_points=p_material_loss_basis_points,notes=nullif(btrim(p_notes),''),is_active=p_is_active where id=p_product_id and business_id=p_business_id;
+    if not found then raise exception 'product not found' using errcode='P0002'; end if;
+    insert into public.audit_logs(business_id,user_id,action_type,entity_name,entity_id,new_data) values(p_business_id,actor,'updated','product',saved_id,jsonb_build_object('name',btrim(p_name),'is_active',p_is_active));
+  end if;
+  delete from public.product_materials where product_id=saved_id and business_id=p_business_id;
+  insert into public.product_materials(business_id,product_id,material_id,quantity_milliunits,position) select p_business_id,saved_id,(l->>'material_id')::uuid,(l->>'quantity_milliunits')::bigint,(l->>'position')::smallint from jsonb_array_elements(p_lines) l;
+  insert into public.audit_logs(business_id,user_id,action_type,entity_name,entity_id,new_data) values(p_business_id,actor,'updated','product_recipe',saved_id,jsonb_build_object('line_count',jsonb_array_length(p_lines)));
+  return saved_id;
 end $$;
 
 create function public.get_product_costing(p_product_id uuid,p_business_id uuid) returns table(raw_materials_cents bigint,material_loss_cents bigint,labor_cents bigint,packaging_cents bigint,manufacturing_cost_cents bigint,gross_margin_cents bigint) language plpgsql stable security definer set search_path='' as $$
@@ -197,8 +223,8 @@ begin
   return query select raw_rounded::bigint,loss_rounded::bigint,labor_rounded::bigint,packaging,total::bigint,(p.sale_price_cents::numeric-total)::bigint;
 end $$;
 
-revoke all on function public.assert_product_manager(uuid),public.get_costing_settings(uuid),public.update_costing_settings(uuid,bigint,bigint),public.create_material(uuid,text,text,uuid,public.material_unit,bigint,bigint,text),public.update_material(uuid,uuid,text,text,uuid,public.material_unit,bigint,bigint,text,boolean),public.archive_material(uuid,uuid),public.create_product(uuid,text,text,public.product_category,bigint,integer,bigint,integer,text),public.update_product(uuid,uuid,text,text,public.product_category,bigint,integer,bigint,integer,text,boolean),public.archive_product(uuid,uuid),public.replace_product_recipe(uuid,uuid,jsonb),public.get_product_costing(uuid,uuid) from public;
-grant execute on function public.get_costing_settings(uuid),public.update_costing_settings(uuid,bigint,bigint),public.create_material(uuid,text,text,uuid,public.material_unit,bigint,bigint,text),public.update_material(uuid,uuid,text,text,uuid,public.material_unit,bigint,bigint,text,boolean),public.archive_material(uuid,uuid),public.create_product(uuid,text,text,public.product_category,bigint,integer,bigint,integer,text),public.update_product(uuid,uuid,text,text,public.product_category,bigint,integer,bigint,integer,text,boolean),public.archive_product(uuid,uuid),public.replace_product_recipe(uuid,uuid,jsonb),public.get_product_costing(uuid,uuid) to authenticated;
+revoke all on function public.assert_product_manager(uuid),public.validate_product_recipe(uuid,jsonb),public.get_costing_settings(uuid),public.update_costing_settings(uuid,bigint,bigint),public.create_material(uuid,text,text,uuid,public.material_unit,bigint,bigint,text),public.update_material(uuid,uuid,text,text,uuid,public.material_unit,bigint,bigint,text,boolean),public.archive_material(uuid,uuid),public.create_product(uuid,text,text,public.product_category,bigint,integer,bigint,integer,text),public.update_product(uuid,uuid,text,text,public.product_category,bigint,integer,bigint,integer,text,boolean),public.archive_product(uuid,uuid),public.replace_product_recipe(uuid,uuid,jsonb),public.save_product_with_recipe(uuid,uuid,text,text,public.product_category,bigint,integer,bigint,integer,text,boolean,jsonb),public.get_product_costing(uuid,uuid) from public;
+grant execute on function public.get_costing_settings(uuid),public.update_costing_settings(uuid,bigint,bigint),public.create_material(uuid,text,text,uuid,public.material_unit,bigint,bigint,text),public.update_material(uuid,uuid,text,text,uuid,public.material_unit,bigint,bigint,text,boolean),public.archive_material(uuid,uuid),public.create_product(uuid,text,text,public.product_category,bigint,integer,bigint,integer,text),public.update_product(uuid,uuid,text,text,public.product_category,bigint,integer,bigint,integer,text,boolean),public.archive_product(uuid,uuid),public.replace_product_recipe(uuid,uuid,jsonb),public.save_product_with_recipe(uuid,uuid,text,text,public.product_category,bigint,integer,bigint,integer,text,boolean,jsonb),public.get_product_costing(uuid,uuid) to authenticated;
 
 comment on table public.materials is 'Lots de référence des matières, quantités en milli-unités et coûts TTC en centimes.';
 comment on table public.products is 'Bijoux et accessoires avec paramètres internes de coût de fabrication estimé.';
