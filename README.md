@@ -175,8 +175,28 @@ Les charges récurrentes sont uniquement des modèles manuels. Elles ne sont pas
 8. Contrôlez les dépenses nettes payées et les justificatifs manquants sur le tableau de bord.
 9. Ouvrez **Documents** et vérifiez que l’aperçu utilise une URL temporaire.
 
+## Produits et coûts de fabrication
+
+Le module **Produits** distingue les matières achetées des bijoux fabriqués. Une matière décrit un lot de référence avec son coût TTC en centimes et sa quantité en milli-unités. Ainsi, 100 perles correspondent à `100000` milli-pièces, 25 grammes à `25000` milli-grammes et 2,5 mètres de chaîne à `250000` milli-centimètres. Aucun prix unitaire décimal n’est persisté.
+
+Une recette associe une quantité de chaque matière au produit. Le coût rationnel de chaque consommation est `coût du lot × quantité consommée ÷ quantité du lot`. Ces fractions sont additionnées exactement, puis le total des matières est arrondi une seule fois au centime. Le coût de fabrication estimé ajoute ensuite les pertes configurées, la valorisation du temps de travail et l’emballage spécifique ou par défaut :
+
+`matières arrondies + pertes arrondies + main-d’œuvre arrondie + emballage`
+
+La marge affichée est le prix de vente diminué de ce coût de fabrication. Elle reste une **marge avant frais commerciaux, cotisations et fiscalité** : elle n’intègre ni commissions Stripe/Etsy/SumUp ou bancaires, ni URSSAF, TVA, impôt ou expédition. Cette estimation utilise les prix courants des matières et ne constitue pas un coût historique figé.
+
+### Parcours manuel de test des produits
+
+1. Ouvrez **Produits > Matières**, créez une matière avec un lot et vérifiez le coût unitaire indicatif.
+2. Configurez la valorisation horaire et l’emballage par défaut dans **Paramètres de coût**.
+3. Créez un produit, ajoutez plusieurs matières à sa recette et contrôlez la prévisualisation.
+4. Vérifiez sur la fiche le détail matières, pertes, main-d’œuvre, emballage, coût total et marge.
+5. Modifiez la recette, retirez une ligne et vérifiez que son remplacement est complet.
+6. Archivez une matière déjà utilisée et vérifiez que la recette existante reste lisible.
+7. Archivez un produit et vérifiez qu’il reste consultable dans le filtre **Archivés**.
+
 ## Limites de cette version
 
-Le module ne propose ni OCR, rapprochement ou connexion bancaire, calcul de coût de revient, stock, amortissements, TVA récupérable, calcul URSSAF, génération planifiée des récurrences ou comptabilité certifiée. Il ne transmet aucune déclaration. Les indicateurs sont uniquement des outils de suivi et aucun taux fiscal, social ou de TVA n’est calculé.
+Le module ne propose ni OCR, rapprochement ou connexion bancaire, stock, lots d’achat, valorisation FIFO/CUMP, décrémentation à la vente, amortissements, TVA récupérable, calcul URSSAF, seuil de rentabilité, images ou variantes produit, génération planifiée des récurrences ou comptabilité certifiée. Il ne transmet aucune déclaration. Les indicateurs sont uniquement des outils de suivi et aucun taux fiscal, social ou de TVA n’est calculé.
 
 Les futures écritures comptables validées devront être rendues inaltérables par une conception dédiée ; `audit_logs` ne constitue pas encore ce registre.
