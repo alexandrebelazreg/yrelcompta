@@ -31,7 +31,7 @@ function optionalLines(values: Array<string | null>): string {
 export async function generateBillingPdf(document: BillingDocument): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    const doc = new PDFDocument({ size: "A4", margins: { top: 80, right: MARGIN, bottom: 20, left: MARGIN }, bufferPages: true, autoFirstPage: true, info: { Title: `${document.kind === "invoice" ? "Facture" : "Avoir"} ${document.number}`, Author: document.issuerLegalNameSnapshot } });
+    const doc = new PDFDocument({ size: "A4", font: REGULAR_FONT, margins: { top: 80, right: MARGIN, bottom: 20, left: MARGIN }, bufferPages: true, autoFirstPage: true, info: { Title: `${document.kind === "invoice" ? "Facture" : "Avoir"} ${document.number}`, Author: document.issuerLegalNameSnapshot } });
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("error", reject);
     doc.on("end", () => resolve(new Uint8Array(Buffer.concat(chunks))));

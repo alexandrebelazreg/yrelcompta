@@ -33,6 +33,8 @@ function sample(kind: "invoice" | "credit_note" = "invoice", itemCount = 2): Bil
 function pageCount(bytes: Uint8Array): number { return (Buffer.from(bytes).toString("latin1").match(/\/Type \/Page\b/g) ?? []).length; }
 
 describe("PDF de facturation", () => {
+  it("externalise PDFKit côté serveur tout en conservant le traçage des polices Noto", () => { const config = readFileSync(join(process.cwd(), "next.config.ts"), "utf8"); expect(config).toContain('serverExternalPackages: ["pdfkit"]'); expect(config).toContain("outputFileTracingIncludes"); expect(config).toContain("noto-sans-latin-400-normal.woff"); expect(config).toContain("noto-sans-latin-700-normal.woff"); });
+  it("démarre PDFDocument directement avec Noto Sans sans dépendre d’Helvetica", () => { const source = readFileSync(join(process.cwd(), "src/lib/invoicing/pdf.ts"), "utf8"); expect(source).toMatch(/new PDFDocument\(\{ size: "A4", font: REGULAR_FONT,/); expect(source).toContain('doc.registerFont("Noto", REGULAR_FONT)'); expect(source).toContain('doc.registerFont("NotoBold", BOLD_FONT)'); });
   it("formate les centimes sans addition flottante ni glyphe de groupement exotique", () => { expect(formatPdfEuros(137_500)).toBe("1 375,00 €"); expect(formatPdfEuros(2_505, true)).toBe("- 25,05 €"); });
   it("affiche une remise de facture non nulle comme une soustraction", () => expect(formatPdfEuros(1_000, true)).toBe("- 10,00 €"));
   it("n’affiche jamais de zéro négatif sur une facture ou un avoir", () => { expect(formatPdfEuros(0)).toBe("0,00 €"); expect(formatPdfEuros(0, true)).toBe("0,00 €"); });
