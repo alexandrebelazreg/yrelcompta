@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const links = [
-  ["/tableau-de-bord", "Tableau de bord", "⌂"], ["/ventes", "Ventes", "↗"],
+  ["/tableau-de-bord", "Tableau de bord", "⌂"], ["/ventes", "Ventes", "↗"], ["/factures", "Factures", "▧"],
   ["/depenses", "Dépenses", "↙"], ["/produits", "Produits", "◇"],
   ["/documents", "Documents", "▤"], ["/registres", "Registres", "▦"],
   ["/parametres", "Paramètres", "⚙"],
