@@ -4,6 +4,7 @@ import {
   adjustmentReasonRequired,
   calculateDeclarationSuggestion,
   calculateRegisterTotals,
+  declarationSubmittedOnMinimum,
   declarationUiStatus,
   generateDeclarationPeriods,
   latestDeclaredAnnualTotal,
@@ -11,6 +12,7 @@ import {
   turnoverDifference,
   validateDeclarationDates,
 } from "./calculations";
+import { declarationSuccessMessage } from "./presentation";
 
 function declaration(revisionNo: number, declaredTurnoverCents: number, periodStart = "2026-01-01"): TurnoverDeclaration {
   return {
@@ -115,14 +117,40 @@ describe("calcul déclaratif", () => {
     expect(adjustmentReasonRequired(10_000, 10_000)).toBe(false);
   });
 
-  it("refuse une période non terminée et une date de déclaration future", () => {
+  it("refuse une période non terminée", () => {
     expect(() => validateDeclarationDates("2026-08-31", "2026-08-20", "2026-08-20")).toThrow("DECLARATION_PERIOD_NOT_ENDED");
+  });
+
+  it("accepte une date de déclaration postérieure à la fin d’une période terminée", () => {
+    expect(() => validateDeclarationDates("2026-07-31", "2026-08-01", "2026-08-20")).not.toThrow();
+    expect(declarationSubmittedOnMinimum("2026-07-31")).toBe("2026-08-01");
+  });
+
+  it("refuse une date de déclaration égale à la fin de période", () => {
+    expect(() => validateDeclarationDates("2026-07-31", "2026-07-31", "2026-08-20")).toThrow("DECLARATION_SUBMITTED_BEFORE_PERIOD_END");
+  });
+
+  it("refuse une date de déclaration antérieure à la fin de période", () => {
+    expect(() => validateDeclarationDates("2026-07-31", "2026-07-10", "2026-08-20")).toThrow("DECLARATION_SUBMITTED_BEFORE_PERIOD_END");
+  });
+
+  it("refuse une date de déclaration future", () => {
     expect(() => validateDeclarationDates("2026-07-31", "2026-08-21", "2026-08-20")).toThrow("DECLARATION_SUBMITTED_IN_FUTURE");
   });
 
   it("calcule l’écart en BigInt et distingue une suggestion indisponible", () => {
     expect(turnoverDifference(10_000, 9_500)).toBe(-500);
     expect(turnoverDifference(null, 9_500)).toBeNull();
+  });
+});
+
+describe("messages de succès déclaratifs", () => {
+  it("mappe uniquement les trois succès connus", () => {
+    expect(declarationSuccessMessage("date-enregistree")).toBe("Date de début d’activité enregistrée.");
+    expect(declarationSuccessMessage("declaration-enregistree")).toBe("Déclaration enregistrée dans YrelCompta.");
+    expect(declarationSuccessMessage("correction-enregistree")).toBe("Correction enregistrée dans YrelCompta.");
+    expect(declarationSuccessMessage("inconnu")).toBeNull();
+    expect(declarationSuccessMessage(["declaration-enregistree"])).toBeNull();
   });
 });
 

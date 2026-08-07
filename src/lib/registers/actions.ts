@@ -32,6 +32,7 @@ function rpcMessage(code: string | undefined, message: string | undefined): stri
   if (code === "42501") return "Vous n’avez pas l’autorisation d’effectuer cette action.";
   if (normalized.includes("activity start locked")) return "La date de début ne peut plus être modifiée après l’enregistrement d’une déclaration.";
   if (normalized.includes("period not ended")) return "Cette période n’est pas encore terminée.";
+  if (normalized.includes("declaration submitted before period end")) return "La date de déclaration doit être postérieure à la fin de la période.";
   if (normalized.includes("adjustment reason") || normalized.includes("correction reason")) return "Un motif est obligatoire pour cet écart ou cette correction.";
   if (normalized.includes("already recorded")) return "Cette période possède déjà une déclaration enregistrée.";
   if (normalized.includes("submitted date")) return "La date de déclaration ne peut pas être future.";

@@ -8,6 +8,7 @@ const migration = readFileSync(join(root, "supabase/migrations", migrationName),
 const sql = migration.replace(/\s+/g, " ");
 const packageJson = readFileSync(join(root, "package.json"), "utf8");
 const declarationPage = readFileSync(join(root, "src/app/(app)/registres/declarations/page.tsx"), "utf8");
+const declarationPresentation = readFileSync(join(root, "src/lib/registers/presentation.ts"), "utf8");
 
 function sqlFunction(name: string, nextMarker: string): string {
   const start = migration.indexOf(`create function public.${name}`);
@@ -49,6 +50,10 @@ describe("migration registres et déclarations", () => {
     expect(sql).toContain("revision_no > 1 and previous_declaration_id is not null");
   });
 
+  it("impose submitted_on strictement après period_end dans le schéma", () => {
+    expect(sql).toContain("constraint turnover_declarations_submitted_after_period check (submitted_on > period_end)");
+  });
+
   it("contrôle la date d’activité par owner et la verrouille après une déclaration", () => {
     const fn = sqlFunction("set_business_activity_started_on", "revoke all on function public.set_business_activity_started_on");
     expect(fn).toContain("auth.uid()");
@@ -87,6 +92,11 @@ describe("migration registres et déclarations", () => {
     expect(fn).toContain("'recorded', 'turnover_declaration'");
   });
 
+  it("refuse une date de déclaration antérieure ou égale dans la RPC initiale", () => {
+    const fn = sqlFunction("record_turnover_declaration", "create function public.revise_turnover_declaration");
+    expect(fn).toContain("if p_submitted_on <= p_period_end then raise exception 'declaration submitted before period end'");
+  });
+
   it("verrouille la dernière révision et insère la correction suivante", () => {
     const fn = sqlFunction("revise_turnover_declaration", "revoke all on function public.record_turnover_declaration");
     expect(fn).toContain("order by revision_no desc");
@@ -94,6 +104,11 @@ describe("migration registres et déclarations", () => {
     expect(fn).toContain("previous.revision_no + 1, previous.id");
     expect(fn).toContain("if reason is null then raise exception 'correction reason required'");
     expect(fn).not.toMatch(/update public\.turnover_declarations/i);
+  });
+
+  it("refuse une date de déclaration antérieure ou égale dans la RPC de correction", () => {
+    const fn = sqlFunction("revise_turnover_declaration", "revoke all on function public.record_turnover_declaration");
+    expect(fn).toContain("if p_submitted_on <= p_period_end then raise exception 'declaration submitted before period end'");
   });
 
   it("audite uniquement période et révision, sans montants sensibles", () => {
@@ -118,6 +133,6 @@ describe("migration registres et déclarations", () => {
   it("ne prétend jamais transmettre automatiquement à l’Urssaf", () => {
     expect(declarationPage).not.toContain("déclaration envoyée à l’Urssaf");
     expect(declarationPage).toContain("Cette action n’envoie rien à l’Urssaf");
-    expect(declarationPage).toContain("Déclaration enregistrée dans YrelCompta");
+    expect(declarationPresentation).toContain("Déclaration enregistrée dans YrelCompta");
   });
 });

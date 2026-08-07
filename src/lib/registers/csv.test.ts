@@ -21,6 +21,15 @@ describe("export CSV sûr", () => {
     expect(csv.indexOf("premier")).toBeLessThan(csv.indexOf("second"));
   });
 
+  it("exporte et protège séparément les références fournisseur et paiement", () => {
+    const csv = createCsv(
+      ["Référence fournisseur / justificatif", "Référence du paiement"],
+      [["=FACTURE-42", "+VIREMENT-7"]],
+    );
+    expect(csv).toContain('"Référence fournisseur / justificatif";"Référence du paiement"');
+    expect(csv).toContain('"\'=FACTURE-42";"\'+VIREMENT-7"');
+  });
+
   it("formate les centimes sans flottant", () => {
     expect(formatCentsForCsv(12_345)).toBe("123,45");
     expect(formatCentsForCsv(0)).toBe("0,00");

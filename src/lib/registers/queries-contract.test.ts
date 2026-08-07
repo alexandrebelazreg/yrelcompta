@@ -34,6 +34,19 @@ describe("contrat des registres", () => {
     expect(purchasePage).toContain("ne constitue pas une déduction fiscale");
   });
 
+  it("sépare la référence fournisseur de la référence du paiement", () => {
+    expect(queries).toContain("expenses!inner(reference,description,status,external_reference)");
+    expect(queries).toContain("supplierReference: expense.external_reference");
+    expect(queries).toContain("paymentReference: value.external_reference");
+    expect(purchasePage).toContain("Référence fournisseur / justificatif");
+    expect(purchasePage).toContain("entry.supplierReference");
+    expect(purchasePage).toContain("entry.paymentReference");
+    expect(purchaseExport).toContain("Référence fournisseur / justificatif");
+    expect(purchaseExport).toContain("Référence du paiement");
+    expect(purchaseExport).toContain("entry.supplierReference");
+    expect(purchaseExport).toContain("entry.paymentReference");
+  });
+
   it("présente les remboursements clients et fournisseurs séparément", () => {
     expect(revenuePage).toContain("Remboursements clients");
     expect(purchasePage).toContain("Avoirs et remboursements fournisseurs");

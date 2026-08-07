@@ -7,8 +7,8 @@ import {
   reviseTurnoverDeclarationAction,
   setActivityStartedOnAction,
 } from "@/lib/registers/actions";
-import { resolveRegisterYear, turnoverDifference } from "@/lib/registers/calculations";
-import { calculationStatusMessages, declarationUiStatusLabels } from "@/lib/registers/presentation";
+import { declarationSubmittedOnMinimum, resolveRegisterYear, turnoverDifference } from "@/lib/registers/calculations";
+import { calculationStatusMessages, declarationSuccessMessage, declarationUiStatusLabels } from "@/lib/registers/presentation";
 import { getDeclarationsPageData } from "@/lib/registers/queries";
 import { formatEuroCents } from "@/lib/sales/calculations";
 import { getTodayInParis } from "@/lib/utils/date";
@@ -24,7 +24,7 @@ function DeclarationForm({ period, year, revision, today }: { period: Declaratio
   const suggested = revision ? period.latestDeclaration?.declaredTurnoverCents ?? 0 : period.suggestedTurnoverCents;
   return <form action={action} className="declaration-form form-stack">
     <input type="hidden" name="periodStart" value={period.periodStart}/><input type="hidden" name="periodEnd" value={period.periodEnd}/><input type="hidden" name="year" value={year}/>
-    <div className="form-grid"><div className="field"><label htmlFor={`${revision ? "revision" : "declaration"}-${period.periodStart}-amount`}>Montant effectivement déclaré</label><input className="input" id={`${revision ? "revision" : "declaration"}-${period.periodStart}-amount`} name="declaredTurnover" inputMode="decimal" defaultValue={suggested === null ? "" : moneyInput(suggested)} required/></div><div className="field"><label htmlFor={`${revision ? "revision" : "declaration"}-${period.periodStart}-date`}>Date de déclaration</label><input className="input" id={`${revision ? "revision" : "declaration"}-${period.periodStart}-date`} name="submittedOn" type="date" defaultValue={today} max={today} required/></div><div className="field"><label htmlFor={`${revision ? "revision" : "declaration"}-${period.periodStart}-reference`}>Référence Urssaf facultative</label><input className="input" id={`${revision ? "revision" : "declaration"}-${period.periodStart}-reference`} name="externalReference" maxLength={200}/></div><div className="field"><label htmlFor={`${revision ? "revision" : "declaration"}-${period.periodStart}-reason`}>{revision ? "Motif de correction" : "Motif d’écart si requis"}</label><textarea className="input" id={`${revision ? "revision" : "declaration"}-${period.periodStart}-reason`} name="adjustmentReason" maxLength={1000} required={revision || period.suggestedTurnoverCents === null}/></div></div>
+    <div className="form-grid"><div className="field"><label htmlFor={`${revision ? "revision" : "declaration"}-${period.periodStart}-amount`}>Montant effectivement déclaré</label><input className="input" id={`${revision ? "revision" : "declaration"}-${period.periodStart}-amount`} name="declaredTurnover" inputMode="decimal" defaultValue={suggested === null ? "" : moneyInput(suggested)} required/></div><div className="field"><label htmlFor={`${revision ? "revision" : "declaration"}-${period.periodStart}-date`}>Date de déclaration</label><input className="input" id={`${revision ? "revision" : "declaration"}-${period.periodStart}-date`} name="submittedOn" type="date" defaultValue={today} min={declarationSubmittedOnMinimum(period.periodEnd)} max={today} required/></div><div className="field"><label htmlFor={`${revision ? "revision" : "declaration"}-${period.periodStart}-reference`}>Référence Urssaf facultative</label><input className="input" id={`${revision ? "revision" : "declaration"}-${period.periodStart}-reference`} name="externalReference" maxLength={200}/></div><div className="field"><label htmlFor={`${revision ? "revision" : "declaration"}-${period.periodStart}-reason`}>{revision ? "Motif de correction" : "Motif d’écart si requis"}</label><textarea className="input" id={`${revision ? "revision" : "declaration"}-${period.periodStart}-reason`} name="adjustmentReason" maxLength={1000} required={revision || period.suggestedTurnoverCents === null}/></div></div>
     <p className="declaration-warning">Cette action n’envoie rien à l’Urssaf. Elle enregistre uniquement dans YrelCompta ce que vous avez déclaré.</p>
     <SubmitButton>{revision ? "Enregistrer une correction" : "Enregistrer comme déclarée"}</SubmitButton>
   </form>;
@@ -36,12 +36,12 @@ export default async function DeclarationsPage({ searchParams }: { searchParams:
   const year = resolveRegisterYear(params.annee);
   const today = getTodayInParis();
   const data = await getDeclarationsPageData(context.business.id, year);
-  const message = typeof params.message === "string" ? params.message : null;
+  const message = declarationSuccessMessage(params.message);
   const error = typeof params.erreur === "string" ? params.erreur : null;
   return <>
     <Link className="back-link" href="/registres">← Registres</Link>
     <header className="page-header"><div><p className="eyebrow">Suivi dans YrelCompta</p><h1>Déclarations de chiffre d’affaires</h1><p>Préparez les périodes et conservez chaque révision, sans transmission automatique à l’Urssaf.</p></div><form className="year-filter" method="get"><label htmlFor="declaration-year">Année</label><input className="input" id="declaration-year" name="annee" type="number" min="1900" max="9999" defaultValue={year}/><button className="button" type="submit">Afficher</button></form></header>
-    {message && <p className="form-message success">Déclaration enregistrée dans YrelCompta.</p>}{error && <p className="form-message" role="alert">{error}</p>}
+    {message && <p className="form-message success">{message}</p>}{error && <p className="form-message" role="alert">{error}</p>}
     <section className="declaration-settings card"><div><p className="eyebrow">Configuration</p><h2>Paramètres déclaratifs</h2></div><dl className="detail-list"><div><dt>Périodicité configurée</dt><dd>{data.settings.declarationPeriod === "monthly" ? "Mensuelle" : "Trimestrielle"}</dd></div><div><dt>Régime de TVA</dt><dd>{data.settings.vatRegime === "franchise" ? "Franchise en base" : "Assujettie"}</dd></div><div><dt>Date de début d’activité</dt><dd>{data.settings.activityStartedOn ? formatFrenchDate(data.settings.activityStartedOn) : "Non renseignée"}</dd></div></dl>
       <p className="dashboard-note">Cette périodicité doit correspondre à celle enregistrée auprès de l’Urssaf.</p>
       <form action={setActivityStartedOnAction} className="activity-date-form"><div className="field"><label htmlFor="activity-started-on">Date légale de début d’activité</label><input className="input" id="activity-started-on" name="activityStartedOn" type="date" max={today} defaultValue={data.settings.activityStartedOn ?? ""} required/></div><SubmitButton>{data.settings.activityStartedOn ? "Corriger la date" : "Enregistrer la date"}</SubmitButton></form>

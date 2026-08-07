@@ -85,7 +85,8 @@ function normalizePurchase(value: Record<string, unknown>): PurchaseRegisterEntr
     expenseReference: String(expense.reference),
     description: String(expense.description),
     method: value.method as ExpensePaymentMethod,
-    externalReference: value.external_reference === null ? null : String(value.external_reference),
+    supplierReference: expense.external_reference === null ? null : String(expense.external_reference),
+    paymentReference: value.external_reference === null ? null : String(value.external_reference),
     amountCents: toSafeIntegerAmount(value.amount_cents),
     businessAmountCents: toSafeIntegerAmount(value.business_amount_cents),
     createdAt: String(value.created_at),
@@ -173,7 +174,7 @@ export async function getPurchaseRegister(businessId: string, year: number) {
     const [payments, refunds] = await Promise.all([
       loadAllRegisterPages(async (from, to) => {
         const { data, error } = await supabase.from("expense_payments")
-          .select("id,paid_on,amount_cents,business_amount_cents,method,external_reference,created_at,expenses!inner(reference,description,status)")
+          .select("id,paid_on,amount_cents,business_amount_cents,method,external_reference,created_at,expenses!inner(reference,description,status,external_reference)")
           .eq("business_id", businessId).in("expenses.status", ["validated", "cancelled"])
           .gte("paid_on", bounds.start).lt("paid_on", bounds.end)
           .order("paid_on", { ascending: true }).order("created_at", { ascending: true }).order("id", { ascending: true }).range(from, to);

@@ -20,9 +20,9 @@ export default async function PurchaseRegisterPage({ searchParams }: { searchPar
       <Card><p>Total annuel</p><strong>{formatEuroCents(data.totals.annualCents)}</strong></Card>
     </section>
     <p className="dashboard-note">Le montant réglé est affiché en brut. La part professionnelle est une donnée interne YrelCompta et ne constitue pas une déduction fiscale.</p>
-    <div className="register-table-wrap"><table className="register-table"><thead><tr><th>Date du règlement</th><th>Référence dépense</th><th>Description</th><th>Mode de règlement</th><th>Référence externe</th><th>Montant réglé</th><th>Part professionnelle suivie</th><th>Enregistré le</th></tr></thead><tbody>
-      {data.entries.map((entry) => <tr key={entry.id}><td>{formatFrenchDate(entry.paidOn)}</td><td>{entry.expenseReference}</td><td>{entry.description}</td><td>{expensePaymentMethodLabels[entry.method]}</td><td>{entry.externalReference ?? "—"}</td><td><strong>{formatEuroCents(entry.amountCents)}</strong></td><td>{formatEuroCents(entry.businessAmountCents)}</td><td>{formatFrenchDate(entry.createdAt)}</td></tr>)}
-      {data.entries.length === 0 && <tr><td colSpan={8} className="register-empty">Aucun règlement fournisseur enregistré pour cette année.</td></tr>}
+    <div className="register-table-wrap"><table className="register-table"><thead><tr><th>Date du règlement</th><th>Référence dépense</th><th>Description</th><th>Mode de règlement</th><th>Référence fournisseur / justificatif</th><th>Référence du paiement</th><th>Montant réglé</th><th>Part professionnelle suivie</th><th>Enregistré le</th></tr></thead><tbody>
+      {data.entries.map((entry) => <tr key={entry.id}><td>{formatFrenchDate(entry.paidOn)}</td><td>{entry.expenseReference}</td><td>{entry.description}</td><td>{expensePaymentMethodLabels[entry.method]}</td><td>{entry.supplierReference ?? "—"}</td><td>{entry.paymentReference ?? "—"}</td><td><strong>{formatEuroCents(entry.amountCents)}</strong></td><td>{formatEuroCents(entry.businessAmountCents)}</td><td>{formatFrenchDate(entry.createdAt)}</td></tr>)}
+      {data.entries.length === 0 && <tr><td colSpan={9} className="register-empty">Aucun règlement fournisseur enregistré pour cette année.</td></tr>}
     </tbody></table></div>
     <section className="register-secondary"><div className="section-heading"><div><p className="eyebrow">Réconciliation séparée</p><h2>Avoirs et remboursements fournisseurs</h2></div></div>
       <p>Ces opérations restent séparées du montant brut du registre des achats et ne sont jamais soustraites silencieusement.</p>

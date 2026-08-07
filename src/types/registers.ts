@@ -35,7 +35,8 @@ export interface PurchaseRegisterEntry {
   expenseReference: string;
   description: string;
   method: ExpensePaymentMethod;
-  externalReference: string | null;
+  supplierReference: string | null;
+  paymentReference: string | null;
   amountCents: number;
   businessAmountCents: number;
   createdAt: string;

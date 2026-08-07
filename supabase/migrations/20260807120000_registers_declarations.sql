@@ -36,6 +36,7 @@ create table public.turnover_declarations (
   constraint turnover_declarations_business_period_revision_key unique (business_id, period_start, period_end, revision_no),
   constraint turnover_declarations_id_business_key unique (id, business_id),
   constraint turnover_declarations_period_valid check (period_start <= period_end and due_on > period_end),
+  constraint turnover_declarations_submitted_after_period check (submitted_on > period_end),
   constraint turnover_declarations_revision_positive check (revision_no > 0),
   constraint turnover_declarations_revision_chain check (
     (revision_no = 1 and previous_declaration_id is null)
@@ -225,6 +226,7 @@ begin
   if not public.can_manage_business(p_business_id) then raise exception 'business access denied' using errcode = '42501'; end if;
   if p_declared_turnover_cents is null or p_declared_turnover_cents < 0 then raise exception 'invalid declared turnover' using errcode = '22023'; end if;
   if p_submitted_on is null or p_submitted_on > today_paris then raise exception 'invalid submitted date' using errcode = '22023'; end if;
+  if p_submitted_on <= p_period_end then raise exception 'declaration submitted before period end' using errcode = '22023'; end if;
 
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_business_id::text || ':' || p_period_start::text || ':' || p_period_end::text, 0));
   select * into settings from public.business_settings where business_id = p_business_id for update;
@@ -313,6 +315,7 @@ begin
   if not public.can_manage_business(p_business_id) then raise exception 'business access denied' using errcode = '42501'; end if;
   if p_declared_turnover_cents is null or p_declared_turnover_cents < 0 then raise exception 'invalid declared turnover' using errcode = '22023'; end if;
   if p_submitted_on is null or p_submitted_on > today_paris then raise exception 'invalid submitted date' using errcode = '22023'; end if;
+  if p_submitted_on <= p_period_end then raise exception 'declaration submitted before period end' using errcode = '22023'; end if;
   if reason is null then raise exception 'correction reason required' using errcode = '23514'; end if;
 
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_business_id::text || ':' || p_period_start::text || ':' || p_period_end::text, 0));

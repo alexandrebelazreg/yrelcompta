@@ -165,7 +165,12 @@ export function validateDeclarationDates(periodEnd: string, submittedOn: string,
   parseDate(submittedOn);
   parseDate(today);
   if (periodEnd >= today) throw new Error("DECLARATION_PERIOD_NOT_ENDED");
+  if (submittedOn <= periodEnd) throw new Error("DECLARATION_SUBMITTED_BEFORE_PERIOD_END");
   if (submittedOn > today) throw new Error("DECLARATION_SUBMITTED_IN_FUTURE");
+}
+
+export function declarationSubmittedOnMinimum(periodEnd: string): string {
+  return nextDay(periodEnd);
 }
 
 export function calculateRegisterTotals<T>(rows: T[], dateOf: (row: T) => string, amountOf: (row: T) => number): RegisterTotals {

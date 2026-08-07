@@ -13,13 +13,14 @@ export async function GET(request: NextRequest) {
   try {
     const { entries } = await getPurchaseRegister(context.business.id, year);
     const csv = createCsv(
-      ["Date du règlement", "Référence dépense", "Description", "Mode de règlement", "Référence externe", "Montant réglé EUR", "Part professionnelle suivie EUR", "Enregistré dans YrelCompta le"],
+      ["Date du règlement", "Référence dépense", "Description", "Mode de règlement", "Référence fournisseur / justificatif", "Référence du paiement", "Montant réglé EUR", "Part professionnelle suivie EUR", "Enregistré dans YrelCompta le"],
       entries.map((entry) => [
         entry.paidOn,
         entry.expenseReference,
         entry.description,
         expensePaymentMethodLabels[entry.method],
-        entry.externalReference ?? "",
+        entry.supplierReference ?? "",
+        entry.paymentReference ?? "",
         formatCentsForCsv(entry.amountCents),
         formatCentsForCsv(entry.businessAmountCents),
         formatFrenchDate(entry.createdAt),
