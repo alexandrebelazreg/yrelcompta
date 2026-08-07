@@ -52,7 +52,7 @@ supabase link --project-ref VOTRE_REFERENCE
 supabase db push
 ```
 
-La migration initiale crée `profiles`, `businesses`, `business_members`, `business_settings` et `audit_logs`. La migration `20260805010000_sales_payments.sql` ajoute les ventes, lignes, encaissements et remboursements. La migration `20260805180000_expenses_documents.sql` ajoute les dépenses, fournisseurs, paiements, remboursements fournisseurs, justificatifs privés et modèles récurrents.
+La migration initiale crée `profiles`, `businesses`, `business_members`, `business_settings` et `audit_logs`. La migration `20260805010000_sales_payments.sql` ajoute les ventes, lignes, encaissements et remboursements. La migration `20260805180000_expenses_documents.sql` ajoute les dépenses, fournisseurs, paiements, remboursements fournisseurs, justificatifs privés et modèles récurrents. La migration `20260807120000_registers_declarations.sql` prépare la date légale de début d’activité et l’historique immuable des déclarations ; elle doit être relue avant toute application.
 
 Avant d’appliquer une nouvelle migration sur un projet lié, inspectez toujours le plan :
 
@@ -239,8 +239,42 @@ Toutes les agrégations susceptibles de dépasser la limite Supabase sont pagin�
 7. Contrôlez le taux pondéré sur les 90 jours précédant la fin du mois et le seuil calculé. Retirez ensuite toutes les charges fixes ou utilisez une période sans vente complète pour vérifier la raison d’indisponibilité.
 8. Vérifiez qu’un mois sans flux affiche des zéros calculés pour la trésorerie, alors qu’un calcul sans données requises affiche « Indisponible ».
 
+## Registres et déclarations
+
+Le **livre des recettes** présente une ligne par encaissement, dans l’ordre de la date de réception puis de l’enregistrement dans YrelCompta. Sa source est `payments.gross_amount_cents` joint à la vente immuable : la commission reste une information distincte et ne réduit jamais la recette. Les règlements en espèces sont identifiés et les totaux sont calculés par trimestre civil puis pour l’année. Les remboursements clients sont affichés dans un bloc séparé et ne deviennent jamais automatiquement des recettes négatives.
+
+Le **registre des achats** présente une ligne par règlement fournisseur lié à une dépense validée ou annulée. Le montant réglementaire affiché vient de `expense_payments.amount_cents`. La part `business_amount_cents` est montrée séparément comme suivi interne YrelCompta, jamais comme déduction fiscale. Les avoirs et remboursements fournisseurs restent eux aussi séparés du montant brut du registre. Les informations modifiables d’un fournisseur ne sont pas utilisées dans l’export tant qu’aucun snapshot historique fournisseur n’existe.
+
+Les sources des deux registres sont inaltérables : les encaissements, remboursements, paiements fournisseurs et remboursements fournisseurs ne peuvent être modifiés ou supprimés. Les informations et justificatifs réglementaires doivent être conservés pendant **10 ans**. Les exports CSV utilisent les mêmes filtres annuels et le même ordre que l’écran, parcourent toutes les pages Supabase et neutralisent les cellules textuelles pouvant être interprétées comme des formules Excel (`=`, `+`, `-` ou `@`). Ils n’exportent aucun chemin Storage, URL signée, secret ou identifiant Auth inutile.
+
+### Calendrier déclaratif
+
+Le calendrier repose exclusivement sur `business_settings.activity_started_on` et sur la périodicité configurée, qui doit correspondre à celle enregistrée auprès de l’Urssaf. Sans date de début d’activité, aucun calendrier n’est inventé.
+
+- En périodicité mensuelle, la première période commence à la date de début et se termine à la fin des trois mois civils consécutifs suivant le mois de début. Les périodes suivantes sont des mois civils.
+- En périodicité trimestrielle, la première période commence à la date de début et se termine à la fin du trimestre civil suivant le trimestre de début. Les périodes suivantes sont les trimestres civils normaux.
+- L’échéance théorique est le dernier jour du mois suivant la fin de période. Aucun report lié aux jours fériés n’est calculé.
+
+Une période sans encaissement possède une proposition valide de `0 €`. En franchise de TVA et sans remboursement client, le montant proposé est la somme exacte des encaissements bruts de la période. Commissions, dépenses, matières, emballage, charges fixes, cotisations et impôt ne sont jamais déduits. Si l’entreprise est assujettie à la TVA, YrelCompta ne disposant pas encore de la ventilation HT/TVA, aucune proposition automatique n’est produite. De même, la présence d’un remboursement client rend la proposition indisponible : son traitement déclaratif doit être vérifié et le remboursement n’est pas soustrait automatiquement.
+
+Le **montant déclaré** reste celui saisi par l’utilisatrice. Lorsqu’il diffère de la proposition, ou lorsque la proposition est indisponible, un motif est obligatoire. Une première déclaration crée la révision 1. Une correction ne modifie jamais cette ligne : elle ajoute une nouvelle révision liée à la précédente, avec un motif obligatoire. Le cumul annuel déclaré utilise uniquement la dernière révision de chaque période, tout en conservant l’historique complet.
+
+« Déclarée » signifie uniquement qu’une révision a été enregistrée dans YrelCompta. L’application n’envoie rien à l’Urssaf : la transmission réelle reste à effectuer sur le service officiel. Elle ne calcule ni cotisations sociales, ni TVA, ni impôt, ni versement libératoire, ni pénalité, ni case de déclaration annuelle. Elle ne traite pas encore les avoirs clients ou la TVA au niveau des factures et ne constitue pas un logiciel comptable certifié.
+
+### Parcours manuel de test des registres et déclarations
+
+1. Renseignez une date de début d’activité et vérifiez la première période spéciale ainsi que l’échéance théorique.
+2. Ouvrez les registres d’une année contenant plus d’un trimestre et contrôlez les ordres, totaux trimestriels et annuels.
+3. Vérifiez qu’une commission ne réduit pas la recette et que les espèces sont identifiées.
+4. Vérifiez que la part professionnelle d’un achat reste distincte du paiement brut et qu’une dépense annulée conserve son paiement historique.
+5. Exportez les deux CSV et contrôlez leur ordre, leur encodage UTF-8 et les noms de fichiers déterministes.
+6. Sur une période sans encaissement, enregistrez une déclaration à `0 €` et vérifiez la révision 1.
+7. Testez une période avec remboursement client puis une entreprise assujettie à la TVA : la proposition doit être indisponible avec le message approprié.
+8. Enregistrez une correction motivée et vérifiez que la révision précédente reste consultable et inchangée.
+9. Vérifiez que la date de début d’activité ne peut plus être corrigée après l’enregistrement d’une déclaration.
+
 ## Limites de cette version
 
-Le module ne propose ni OCR, rapprochement ou connexion bancaire, stock, lots d’achat, valorisation FIFO/CUMP, décrémentation à la vente, amortissements, TVA récupérable, calcul URSSAF, images ou variantes produit, génération planifiée des récurrences ou comptabilité certifiée. Il ne transmet aucune déclaration. Les indicateurs et le seuil de rentabilité estimé sont uniquement des outils de suivi ; aucun taux fiscal, social ou de TVA n’est calculé.
+Le module ne propose ni OCR, rapprochement ou connexion bancaire, stock, lots d’achat, valorisation FIFO/CUMP, décrémentation à la vente, amortissements, TVA récupérable, calcul URSSAF, images ou variantes produit, génération planifiée des récurrences ou comptabilité certifiée. Il ne transmet aucune déclaration. Les registres, indicateurs et calendriers sont uniquement des outils de préparation et de suivi ; aucun taux fiscal, social ou de TVA n’est calculé.
 
 Les futures écritures comptables validées devront être rendues inaltérables par une conception dédiée ; `audit_logs` ne constitue pas encore ce registre.
