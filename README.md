@@ -205,8 +205,42 @@ La marge affichée est le prix de vente diminué de ce coût de fabrication. Ell
 6. Archivez une matière déjà utilisée et vérifiez que la recette existante reste lisible.
 7. Archivez un produit et vérifiez qu’il reste consultable dans le filtre **Archivés**.
 
+## Tableau de bord mensuel et seuil de rentabilité
+
+Le tableau de bord accepte `?mois=YYYY-MM` et utilise le mois courant en `Europe/Paris` lorsque le paramètre est absent ou invalide. Les périodes sont toujours traitées avec un début inclus et le début du mois suivant exclusif. Les dernières ventes et les justificatifs manquants restent des suivis globaux, indépendants du mois choisi.
+
+Les indicateurs séparent volontairement quatre notions :
+
+- le **chiffre d’affaires encaissé** est la somme des encaissements bruts datés du mois, diminuée des remboursements clients datés du mois ;
+- le **flux net suivi** retranche ensuite les commissions des paiements reçus pendant le mois et les dépenses professionnelles nettes effectivement payées. C’est un suivi de trésorerie, pas un bénéfice comptable ou fiscal ;
+- la **marge de fabrication historique** est calculée sur les ventes validées du mois qui disposent d’un snapshot complet : `sous-total marchandises - remise - coût de fabrication historique`. Elle exclut livraison, commissions, remboursements, cotisations, TVA et impôt ;
+- les **charges fixes prévisionnelles** proviennent uniquement des modèles récurrents actifs, fixes et d’exploitation. Elles ne sont pas remplacées par les dépenses réellement payées du mois.
+
+Les modèles de nature `investment` ou `tax_social`, de comportement `variable` ou `exceptional`, ainsi que les catégories `taxes_social`, `raw_materials` et `packaging`, sont exclus des charges fixes. Les matières et emballages sont déjà intégrés au coût de fabrication et ne doivent pas être comptés deux fois. Pour chaque modèle éligible, la part professionnelle est arrondie avec la même règle que dans le module Dépenses. Les montants sont ensuite annualisés (`mensuel × 12`, `trimestriel × 4`, `annuel × 1`), additionnés, puis divisés par 12 avec un seul arrondi final pour l’affichage mensuel.
+
+Le taux de marge de référence est pondéré par le chiffre d’affaires marchandises des ventes validées avec snapshot complet sur les 90 jours se terminant au début du mois suivant. Ce n’est jamais une moyenne simple des taux par vente. Le seuil est ensuite calculé exactement en centimes :
+
+`ceil(charges fixes annuelles × CA marchandises de référence / (12 × marge de fabrication de référence))`
+
+Il représente le chiffre d’affaires marchandises nécessaire pour que la marge de fabrication couvre les charges fixes récurrentes estimées. Il ne constitue pas un résultat fiscal complet et exclut volontairement cotisations sociales, TVA, impôt et coûts commerciaux absents de la marge produit. Aucune valeur fiscale ou sociale n’est codée en dur.
+
+Une vente récente au coût incomplet ou une vente historique sans snapshot est comptée dans la couverture, mais jamais intégrée silencieusement à la marge. L’écart entre marge mensuelle et charges fixes n’est affiché que si toutes les ventes validées du mois ont un coût historique complet. De même, le seuil est **indisponible** sans charges fixes configurées, sans vente complète de référence, ou avec un revenu ou une marge de référence non positifs. « Indisponible » signifie que les données ne permettent pas le calcul ; `0 €` reste réservé à un résultat réellement calculé égal à zéro.
+
+Toutes les agrégations susceptibles de dépasser la limite Supabase sont paginées par blocs de 1 000 lignes. Une erreur sur n’importe quelle page annule l’ensemble du chargement : aucun total partiel n’est présenté. Les sommes, annualisations et ratios monétaires utilisent `BigInt`, avec contrôle de la plage sûre avant conversion en `number` pour l’affichage.
+
+### Parcours manuel de test du tableau de bord
+
+1. Ouvrez `/tableau-de-bord?mois=2026-08`, changez le mois et vérifiez que le formulaire conserve une URL en lecture seule.
+2. Enregistrez un encaissement avec commission, un remboursement client, un paiement fournisseur et un remboursement fournisseur à des dates connues ; contrôlez séparément chiffre d’affaires encaissé, commissions, dépenses professionnelles nettes et flux net suivi.
+3. Validez une vente produit avec remise et livraison ; vérifiez que la remise réduit la marge tandis que la livraison en reste exclue.
+4. Ajoutez une vente libre ou historique sans snapshot et vérifiez la couverture ainsi que l’indisponibilité de l’écart mensuel.
+5. Configurez des modèles récurrents mensuel, trimestriel et annuel avec différentes parts professionnelles, puis vérifiez leur estimation annualisée depuis le lien **Gérer les charges fixes**.
+6. Vérifiez qu’un modèle variable, exceptionnel, d’investissement, social, de matières ou d’emballage n’alimente pas les charges fixes.
+7. Contrôlez le taux pondéré sur les 90 jours précédant la fin du mois et le seuil calculé. Retirez ensuite toutes les charges fixes ou utilisez une période sans vente complète pour vérifier la raison d’indisponibilité.
+8. Vérifiez qu’un mois sans flux affiche des zéros calculés pour la trésorerie, alors qu’un calcul sans données requises affiche « Indisponible ».
+
 ## Limites de cette version
 
-Le module ne propose ni OCR, rapprochement ou connexion bancaire, stock, lots d’achat, valorisation FIFO/CUMP, décrémentation à la vente, amortissements, TVA récupérable, calcul URSSAF, seuil de rentabilité, images ou variantes produit, génération planifiée des récurrences ou comptabilité certifiée. Il ne transmet aucune déclaration. Les indicateurs sont uniquement des outils de suivi et aucun taux fiscal, social ou de TVA n’est calculé.
+Le module ne propose ni OCR, rapprochement ou connexion bancaire, stock, lots d’achat, valorisation FIFO/CUMP, décrémentation à la vente, amortissements, TVA récupérable, calcul URSSAF, images ou variantes produit, génération planifiée des récurrences ou comptabilité certifiée. Il ne transmet aucune déclaration. Les indicateurs et le seuil de rentabilité estimé sont uniquement des outils de suivi ; aucun taux fiscal, social ou de TVA n’est calculé.
 
 Les futures écritures comptables validées devront être rendues inaltérables par une conception dédiée ; `audit_logs` ne constitue pas encore ce registre.

@@ -230,3 +230,19 @@ footer { color: var(--muted); padding: 2rem; text-align: center; }
 @media(max-width:1050px){.expense-summary{grid-template-columns:repeat(3,1fr)}.expense-filters{grid-template-columns:repeat(3,1fr)}.document-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.header-actions{align-items:stretch;flex-direction:column;width:100%}.expense-summary,.expense-filters,.management-list,.document-grid,.upload-form{grid-template-columns:1fr}.expense-filters .filter-search{grid-column:auto}.document-row{align-items:stretch;flex-direction:column}.app-content{overflow-x:hidden}}
 .product-grid{display:grid;gap:1rem;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:1.5rem}.product-card{text-decoration:none}.product-card h2{font-size:1.15rem}.recipe-line{align-items:end;display:grid;gap:.8rem;grid-template-columns:2fr 1fr auto}.recipe-line .danger-text{margin-bottom:.1rem}@media(max-width:900px){.product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){.product-grid,.recipe-line{grid-template-columns:1fr}}
+
+/* Tableau de bord mensuel */
+.dashboard-month-form { align-items: end; display: grid; gap: .55rem; grid-template-columns: minmax(150px, 190px) auto; }
+.dashboard-month-form label { font-size: .85rem; font-weight: 680; grid-column: 1 / -1; }
+.dashboard-section { margin-top: 2.5rem; }
+.dashboard-section:first-of-type { margin-top: 0; }
+.dashboard-section .metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.dashboard-note { background: #f6f2ef; border-radius: .7rem; color: var(--muted); font-size: .85rem; margin: .8rem 0 0; padding: .8rem 1rem; }
+.snapshot-coverage { align-items: center; background: var(--brand-soft); border-radius: .8rem; display: flex; gap: 1rem; justify-content: space-between; margin-top: .8rem; padding: .9rem 1rem; }
+.snapshot-coverage span { color: var(--muted); font-size: .85rem; }
+.dashboard-error { background: #fff0f0; border: 1px solid #e7bebe; border-radius: var(--radius); color: var(--danger); padding: 1.5rem; }
+.dashboard-error h2 { font-size: 1.25rem; margin-bottom: .4rem; }
+.dashboard-error p { margin-bottom: 0; }
+.card-link { color: var(--brand); display: inline-block; font-size: .85rem; font-weight: 700; margin-top: .7rem; text-decoration: underline; }
+@media(max-width:1050px){.dashboard-section .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.dashboard-month-form{grid-template-columns:1fr;width:100%}.dashboard-month-form label{grid-column:auto}.dashboard-section .metric-grid{grid-template-columns:1fr}.snapshot-coverage{align-items:flex-start;flex-direction:column}.dashboard-section{margin-top:2rem}}
