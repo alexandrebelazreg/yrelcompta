@@ -34,6 +34,8 @@ function pageCount(bytes: Uint8Array): number { return (Buffer.from(bytes).toStr
 
 describe("PDF de facturation", () => {
   it("formate les centimes sans addition flottante ni glyphe de groupement exotique", () => { expect(formatPdfEuros(137_500)).toBe("1 375,00 €"); expect(formatPdfEuros(2_505, true)).toBe("- 25,05 €"); });
+  it("affiche une remise de facture non nulle comme une soustraction", () => expect(formatPdfEuros(1_000, true)).toBe("- 10,00 €"));
+  it("n’affiche jamais de zéro négatif sur une facture ou un avoir", () => { expect(formatPdfEuros(0)).toBe("0,00 €"); expect(formatPdfEuros(0, true)).toBe("0,00 €"); });
   it("génère une facture PDF lisible", async () => { const bytes = await generateBillingPdf(sample()); expect(Buffer.from(bytes).subarray(0, 5).toString()).toBe("%PDF-"); expect(bytes.length).toBeGreaterThan(4_000); expect(pageCount(bytes)).toBeGreaterThanOrEqual(1); });
   it("génère un avoir avec référence à la facture initiale", async () => { const bytes = await generateBillingPdf(sample("credit_note")); expect(bytes.length).toBeGreaterThan(4_000); expect(pageCount(bytes)).toBeGreaterThanOrEqual(1); });
   it("préserve sans erreur les accents français et œ grâce à Noto Sans", async () => await expect(generateBillingPdf(sample())).resolves.toBeInstanceOf(Uint8Array));

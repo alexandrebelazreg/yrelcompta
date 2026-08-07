@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const root = process.cwd();
 const migrationName = "20260807220000_invoicing_documents.sql";
 const migration = readFileSync(join(root, "supabase/migrations", migrationName), "utf8");
+const salesMigration = readFileSync(join(root, "supabase/migrations/20260805010000_sales_payments.sql"), "utf8");
 const sql = migration.replace(/\s+/g, " ");
 function fn(name: string, next: string): string { const start = migration.indexOf(`${name}(`); return migration.slice(start, migration.indexOf(next, start)); }
 const settingsFn = fn("public.save_invoice_settings", "create function public.issue_invoice");
@@ -38,6 +39,14 @@ describe("migration de facturation", () => {
     expect(audit).not.toMatch(/issuer_address|issuer_email|issuer_phone/);
   });
   it("crée une clé de compteur par entreprise, type et année", () => expect(sql).toContain("primary key (business_id, document_kind, series_year)"));
+  it("ajoute la clé composite des remboursements avant la FK du document", () => {
+    const unique = "constraint refunds_id_business_sale_key unique (id, business_id, sale_id)";
+    const foreignKey = "billing_documents_refund_business_sale_fk foreign key (linked_refund_id, business_id, sale_id) references public.refunds(id, business_id, sale_id)";
+    expect(sql).toContain(unique);
+    expect(sql).toContain(foreignKey);
+    expect(sql.indexOf(unique)).toBeLessThan(sql.indexOf(foreignKey));
+    expect(salesMigration).not.toContain("refunds_id_business_sale_key");
+  });
   it("n’utilise aucune séquence PostgreSQL", () => expect(migration).not.toMatch(/nextval|create sequence/i));
   it("met à jour le compteur facture dans la transaction d’insertion", () => {
     expect(invoiceFn).toContain("insert into public.billing_number_counters");
@@ -87,6 +96,12 @@ describe("migration de facturation", () => {
   it("gère l’opposition explicite du particulier et l’adresse du professionnel", () => {
     expect(sql).toContain("buyer_kind = 'professional' and buyer_address_omitted = false");
     expect(sql).toContain("buyer_kind = 'individual' and buyer_address_omitted = true and buyer_address is null");
+  });
+  it("exige un SIREN à neuf chiffres pour un client professionnel", () => {
+    expect(sql).toContain("buyer_kind = 'professional' and buyer_siren is not null and buyer_siren ~ '^[0-9]{9}$'");
+    expect(sql).toContain("buyer_kind = 'individual' and (buyer_siren is null or buyer_siren ~ '^[0-9]{9}$')");
+    expect(invoiceFn).toContain("PROFESSIONAL_BUYER_SIREN_REQUIRED");
+    expect(invoiceFn).toContain("coalesce(p_buyer_siren, '') !~ '^[0-9]{9}$'");
   });
   it("exige les quatre clauses B2B sans calculer de pénalité", () => {
     for (const field of ["default_payment_terms", "default_early_payment_discount_terms", "default_late_penalty_terms", "default_recovery_indemnity_text"]) expect(invoiceFn).toContain(field);

@@ -125,20 +125,32 @@ export async function getBillingDocument(businessId: string, documentId: string)
     .eq("business_id", businessId).eq("id", documentId).maybeSingle();
   if (error) { logError(error.code); throw new Error(FAILURE); }
   if (!row) return null;
-  const [itemsResult, creditsResult, refundsResult, originalResult] = await Promise.all([
-    supabase.from("billing_document_items").select("*").eq("business_id", businessId).eq("billing_document_id", documentId).order("position"),
-    supabase.from("billing_documents").select("*,sales!billing_documents_sale_business_fk(reference)").eq("business_id", businessId).eq("original_invoice_id", documentId).order("issued_on").order("id"),
-    supabase.from("refunds").select("id,refunded_on,amount_cents,reason,billing_documents!billing_documents_refund_business_sale_fk(id)").eq("business_id", businessId).eq("sale_id", row.sale_id).order("refunded_on").order("id"),
+  const [itemRows, creditRows, refundRows, originalResult] = await Promise.all([
+    loadAllBillingPages(async (from, to) => {
+      const { data, error } = await supabase.from("billing_document_items").select("*").eq("business_id", businessId)
+        .eq("billing_document_id", documentId).order("position").range(from, to);
+      return { data: data as unknown as Array<Record<string, unknown>> | null, error };
+    }, logError),
+    loadAllBillingPages(async (from, to) => {
+      const { data, error } = await supabase.from("billing_documents").select("*,sales!billing_documents_sale_business_fk(reference)")
+        .eq("business_id", businessId).eq("original_invoice_id", documentId).order("issued_on").order("id").range(from, to);
+      return { data: data as unknown as Array<Record<string, unknown>> | null, error };
+    }, logError),
+    loadAllBillingPages(async (from, to) => {
+      const { data, error } = await supabase.from("refunds").select("id,refunded_on,amount_cents,reason,billing_documents!billing_documents_refund_business_sale_fk(id)")
+        .eq("business_id", businessId).eq("sale_id", row.sale_id).order("refunded_on").order("id").range(from, to);
+      return { data: data as unknown as Array<Record<string, unknown>> | null, error };
+    }, logError),
     row.original_invoice_id ? supabase.from("billing_documents").select("number,issued_on").eq("business_id", businessId).eq("id", row.original_invoice_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
   ]);
-  for (const result of [itemsResult, creditsResult, refundsResult, originalResult]) if (result.error) { logError(result.error.code); throw new Error(FAILURE); }
-  const result = document(row as unknown as Record<string, unknown>, (itemsResult.data ?? []).map((value) => item(value as unknown as Record<string, unknown>)), originalResult.data as unknown as Record<string, unknown> | null);
-  result.credits = (creditsResult.data ?? []).map((value) => document(value as unknown as Record<string, unknown>));
+  if (originalResult.error) { logError(originalResult.error.code); throw new Error(FAILURE); }
+  const result = document(row as unknown as Record<string, unknown>, itemRows.map(item), originalResult.data as unknown as Record<string, unknown> | null);
+  result.credits = creditRows.map((value) => document(value));
   result.commercialState = billingCommercialState(result.kind, result.totalInclTaxCents, sumInvoiceCents(result.credits.map((credit) => credit.totalInclTaxCents)));
   return {
     document: result,
-    refunds: (refundsResult.data ?? []).map((value) => ({
-      id: String(value.id), refundedOn: String(value.refunded_on), amountCents: sumInvoiceCents([value.amount_cents]),
+    refunds: refundRows.map((value) => ({
+      id: String(value.id), refundedOn: String(value.refunded_on), amountCents: sumInvoiceCents([value.amount_cents as string | number]),
       reason: String(value.reason), linked: Array.isArray(value.billing_documents) && value.billing_documents.length > 0,
     })),
   };
@@ -152,10 +164,12 @@ export async function getInvoiceForSale(businessId: string, saleId: string): Pro
   if (error) { logError(error.code); throw new Error(FAILURE); }
   if (!data) return null;
   const result = document(data as unknown as Record<string, unknown>);
-  const { data: credits, error: creditsError } = await supabase.from("billing_documents").select("total_incl_tax_cents")
-    .eq("business_id", businessId).eq("original_invoice_id", result.id).eq("kind", "credit_note");
-  if (creditsError) { logError(creditsError.code); throw new Error(FAILURE); }
-  result.commercialState = billingCommercialState(result.kind, result.totalInclTaxCents, sumInvoiceCents((credits ?? []).map((credit) => credit.total_incl_tax_cents)));
+  const credits = await loadAllBillingPages(async (from, to) => {
+    const { data: rows, error: creditsError } = await supabase.from("billing_documents").select("total_incl_tax_cents")
+      .eq("business_id", businessId).eq("original_invoice_id", result.id).eq("kind", "credit_note").order("issued_on").order("id").range(from, to);
+    return { data: rows as unknown as Array<{ total_incl_tax_cents: string | number }> | null, error: creditsError };
+  }, logError);
+  result.commercialState = billingCommercialState(result.kind, result.totalInclTaxCents, sumInvoiceCents(credits.map((credit) => credit.total_incl_tax_cents)));
   return result;
 }
 

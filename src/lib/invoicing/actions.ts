@@ -17,12 +17,17 @@ const settingsSchema = z.object({
   defaultRecoveryIndemnityText: nullableText(1000),
 });
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const professionalBuyerSirenMessage = "Le SIREN à 9 chiffres est obligatoire pour un client professionnel dans la facturation V1.";
 const invoiceSchema = z.object({
   saleId: z.string().uuid(), supplyOn: dateSchema, operationCategory: z.enum(["goods", "services", "mixed"]),
   buyerKind: z.enum(["individual", "professional"]), buyerName: z.string().trim().min(1).max(200),
   buyerAddress: nullableText(1000), buyerAddressOmitted: z.boolean(), buyerBillingAddress: nullableText(1000),
   buyerDeliveryAddress: nullableText(1000), buyerEmail: nullableText(254), buyerSiren: z.string().trim().refine((value) => value === "" || /^\d{9}$/.test(value)),
   buyerVatNumber: nullableText(50), purchaseOrderReference: nullableText(200), paymentDueOn: dateSchema,
+}).superRefine((value, context) => {
+  if (value.buyerKind === "professional" && !/^\d{9}$/.test(value.buyerSiren)) {
+    context.addIssue({ code: "custom", path: ["buyerSiren"], message: professionalBuyerSirenMessage });
+  }
 });
 const creditSchema = z.object({
   invoiceId: z.string().uuid(), amount: z.string().min(1).transform((value, context) => {
@@ -39,6 +44,7 @@ async function mutationContext() {
 function billingError(message: string | undefined): string {
   const value = message ?? "";
   if (value.includes("VAT_INVOICING_NOT_SUPPORTED")) return "Facturation automatique indisponible : YrelCompta ne ventile pas encore la TVA. Aucune facture ne sera générée tant que cette ventilation n’est pas implémentée.";
+  if (value.includes("PROFESSIONAL_BUYER_SIREN_REQUIRED")) return professionalBuyerSirenMessage;
   if (value.includes("invoice settings required")) return "Complétez d’abord les paramètres de facturation.";
   if (value.includes("professional invoice terms required")) return "Complétez les conditions B2B dans les paramètres de facturation.";
   if (value.includes("invoice already issued")) return "Une facture a déjà été émise pour cette vente.";
@@ -77,7 +83,12 @@ export async function issueInvoiceAction(formData: FormData) {
     purchaseOrderReference: formData.get("purchaseOrderReference") ?? "", paymentDueOn: formData.get("paymentDueOn"),
   });
   const saleId = String(formData.get("saleId") ?? "");
-  if (!parsed.success) redirect(`/factures/nouvelle?vente=${encodeURIComponent(saleId)}&erreur=Vérifiez les informations client et les dates`);
+  if (!parsed.success) {
+    const message = parsed.error.issues.some((issue) => issue.path[0] === "buyerSiren" && issue.message === professionalBuyerSirenMessage)
+      ? professionalBuyerSirenMessage
+      : "Vérifiez les informations client et les dates";
+    redirect(`/factures/nouvelle?vente=${encodeURIComponent(saleId)}&erreur=${encodeURIComponent(message)}`);
+  }
   const context = await mutationContext();
   if (!context) redirect("/factures?erreur=Session indisponible");
   const value = parsed.data;

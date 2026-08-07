@@ -283,6 +283,8 @@ La numérotation repose sur des lignes compteurs transactionnelles verrouillées
 
 Cette V1 émet uniquement pour une entreprise configurée en **franchise de TVA**. Elle pose `vat_cents = 0`, conserve HT = TTC dans ce modèle et snapshote la mention configurée, proposée initialement comme « TVA non applicable, art. 293 B du CGI ». Si le régime est `liable`, l’émission est bloquée : aucun taux n’est codé en dur et YrelCompta ne tente jamais de reconstituer la TVA.
 
+La facturation professionnelle V1 couvre les clients professionnels français et exige leur SIREN à 9 chiffres. La facturation internationale n’est pas encore modélisée ; cette version n’ajoute donc aucune règle de TVA internationale.
+
 Une correction passe par un nouvel avoir immuable qui référence la facture initiale. Plusieurs avoirs partiels sont possibles sans dépasser le total facturé. Un avoir peut être relié à un remboursement de la même vente et du même montant, sans créer ni modifier ce remboursement. Une vente facturée ne peut être annulée qu’après crédit intégral et lorsque les règles historiques d’encaissement net nul sont également satisfaites.
 
 Les PDF sont produits à la demande côté serveur avec PDFKit et une police Noto Sans embarquée, sans navigateur headless ni Storage. Ils gèrent les documents multipages, rappellent type, numéro et pagination sur chaque page, et n’intègrent aucune donnée dynamique de paiement, coût de fabrication, marge ou commission.

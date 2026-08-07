@@ -51,6 +51,10 @@ create table public.billing_number_counters (
   constraint billing_number_counters_value check (last_value > 0)
 );
 
+alter table public.refunds
+  add constraint refunds_id_business_sale_key
+  unique (id, business_id, sale_id);
+
 create table public.billing_documents (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references public.businesses(id) on delete restrict,
@@ -120,7 +124,10 @@ create table public.billing_documents (
     or (buyer_kind = 'individual' and buyer_address_omitted = true and buyer_address is null)
     or (buyer_kind = 'individual' and buyer_address_omitted = false and char_length(btrim(coalesce(buyer_address, ''))) between 5 and 1000)
   ),
-  constraint billing_documents_buyer_siren check (buyer_siren is null or buyer_siren ~ '^[0-9]{9}$'),
+  constraint billing_documents_buyer_siren check (
+    (buyer_kind = 'individual' and (buyer_siren is null or buyer_siren ~ '^[0-9]{9}$'))
+    or (buyer_kind = 'professional' and buyer_siren is not null and buyer_siren ~ '^[0-9]{9}$')
+  ),
   constraint billing_documents_buyer_email check (buyer_email is null or char_length(buyer_email) between 3 and 254),
   constraint billing_documents_buyer_text_lengths check (
     char_length(coalesce(buyer_billing_address, '')) <= 1000
@@ -318,7 +325,10 @@ begin
     (coalesce(p_buyer_address_omitted, false) and nullif(btrim(p_buyer_address), '') is not null)
     or (not coalesce(p_buyer_address_omitted, false) and char_length(btrim(coalesce(p_buyer_address, ''))) not between 5 and 1000)
   ) then raise exception 'invalid individual buyer address' using errcode = '22023'; end if;
-  if p_buyer_siren is not null and p_buyer_siren !~ '^[0-9]{9}$' then raise exception 'invalid buyer siren' using errcode = '22023'; end if;
+  if p_buyer_kind = 'professional' and coalesce(p_buyer_siren, '') !~ '^[0-9]{9}$'
+    then raise exception 'PROFESSIONAL_BUYER_SIREN_REQUIRED' using errcode = '23514'; end if;
+  if p_buyer_kind = 'individual' and p_buyer_siren is not null and p_buyer_siren !~ '^[0-9]{9}$'
+    then raise exception 'invalid buyer siren' using errcode = '22023'; end if;
   if p_buyer_kind = 'professional' and (
     settings_row.default_payment_terms is null
     or settings_row.default_early_payment_discount_terms is null

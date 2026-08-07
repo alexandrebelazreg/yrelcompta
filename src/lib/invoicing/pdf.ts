@@ -11,11 +11,11 @@ const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const REGULAR_FONT = join(process.cwd(), "node_modules", "@fontsource", "noto-sans", "files", "noto-sans-latin-400-normal.woff");
 const BOLD_FONT = join(process.cwd(), "node_modules", "@fontsource", "noto-sans", "files", "noto-sans-latin-700-normal.woff");
 
-export function formatPdfEuros(cents: number, credit = false): string {
+export function formatPdfEuros(cents: number, negative = false): string {
   if (!Number.isSafeInteger(cents)) throw new Error("PDF_UNSAFE_MONETARY_VALUE");
   const absolute = Math.abs(cents);
   const euros = Math.floor(absolute / 100).toLocaleString("fr-FR").replaceAll("\u202f", " ");
-  return `${credit ? "- " : ""}${euros},${String(absolute % 100).padStart(2, "0")} €`;
+  return `${negative && absolute !== 0 ? "- " : ""}${euros},${String(absolute % 100).padStart(2, "0")} €`;
 }
 
 function frenchDate(value: string): string {
@@ -105,14 +105,14 @@ export async function generateBillingPdf(document: BillingDocument): Promise<Uin
     ensureSpace(155);
     sectionTitle("Synthèse");
     const credit = document.kind === "credit_note";
-    const totalLine = (label: string, amount: number, bold = false) => {
+    const totalLine = (label: string, amount: number, bold = false, negative = credit) => {
       const y = doc.y;
-      doc.font(bold ? "NotoBold" : "Noto").fontSize(bold ? 10 : 9).text(label, 315, y, { width: 135 }).text(formatPdfEuros(amount, credit), 450, y, { width: 100, align: "right" });
+      doc.font(bold ? "NotoBold" : "Noto").fontSize(bold ? 10 : 9).text(label, 315, y, { width: 135 }).text(formatPdfEuros(amount, negative), 450, y, { width: 100, align: "right" });
       doc.y = y + (bold ? 19 : 17);
     };
     totalLine("Sous-total HT", document.subtotalExclTaxCents);
     totalLine("Livraison", document.shippingExclTaxCents);
-    totalLine("Remise", document.discountExclTaxCents);
+    totalLine("Remise", document.discountExclTaxCents, false, credit || document.discountExclTaxCents > 0);
     totalLine("Total HT", document.totalExclTaxCents);
     totalLine("TVA", document.vatCents);
     totalLine(document.kind === "invoice" ? "Total TTC" : "Montant crédité", document.totalInclTaxCents, true);
