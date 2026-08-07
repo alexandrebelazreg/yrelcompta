@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getAuthenticatedContext } from "@/lib/auth/context";
 import { calculateDashboardMetrics, resolveDashboardMonth } from "@/lib/dashboard/calculations";
+import { fixedCostCoverageMessage } from "@/lib/dashboard/presentation";
 import { getDashboardData } from "@/lib/dashboard/queries";
 import { formatEuroCents } from "@/lib/sales/calculations";
 import { saleChannelLabels } from "@/lib/sales/labels";
@@ -77,7 +78,7 @@ function DashboardContent({ metrics, recentSales }: { metrics: DashboardMetrics;
         <Card><p>Charges fixes estimées / mois</p><strong>{moneyOrUnavailable(metrics.fixedCosts.monthlyCents)}</strong><small>Estimation issue des charges récurrentes actives classées en charges fixes. {metrics.fixedCosts.annualCents === null ? "" : `${formatEuroCents(metrics.fixedCosts.annualCents)} par an.`}</small><Link className="card-link" href="/depenses/recurrences">Gérer les charges fixes</Link></Card>
         <Card><p>Taux de marge de fabrication de référence — 90 jours</p><strong>{referenceAvailable ? percentOrUnavailable(metrics.reference.marginRateBasisPoints) : "Indisponible"}</strong><small>{metrics.reference.saleCount} vente(s) complète(s) pondérée(s) par le chiffre d’affaires marchandises</small></Card>
         <Card><p>Seuil de rentabilité estimé</p><strong>{moneyOrUnavailable(metrics.breakEven.monthlyRevenueCents)}</strong><small>{breakEvenReason} Seuil de couverture des charges fixes par la marge de fabrication. Il exclut notamment les cotisations sociales, la TVA, l’impôt et les coûts commerciaux non inclus dans la marge produit.</small></Card>
-        <Card><p>Écart après couverture des charges fixes</p><strong>{moneyOrUnavailable(metrics.fixedCostCoverageDeltaCents)}</strong><small>{metrics.fixedCostCoverageDeltaCents === null ? "Écart indisponible tant que toutes les ventes du mois ne disposent pas d’un coût historique complet." : "Marge de fabrication moins charges fixes récurrentes estimées. Ce montant n’intègre pas encore cotisations, fiscalité ni tous les frais commerciaux."}</small></Card>
+        <Card><p>Écart après couverture des charges fixes</p><strong>{moneyOrUnavailable(metrics.fixedCostCoverage.deltaCents)}</strong><small>{fixedCostCoverageMessage(metrics.fixedCostCoverage.unavailableReason)}</small></Card>
       </div>
       <p className="dashboard-note">Les charges fixes sont annualisées depuis les modèles actifs, fixes et d’exploitation, puis ramenées au mois. Le seuil indique le chiffre d’affaires marchand mensuel nécessaire pour couvrir cette estimation avec la marge historique de référence.</p>
     </section>

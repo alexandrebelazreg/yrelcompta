@@ -5,6 +5,7 @@ import type {
   DashboardRecurringTemplate,
   DashboardSaleCosting,
   DashboardSourceData,
+  FixedCostCoverageUnavailableReason,
 } from "@/types/dashboard";
 import { calculateProfessionalAmount } from "../expenses/calculations";
 
@@ -167,10 +168,15 @@ export function calculateDashboardMetrics(source: DashboardSourceData): Dashboar
   else if (reference.manufacturingMargin <= BigInt(0)) unavailableReason = "non-positive-reference-margin";
   else breakEven = ceilPositiveRatio(annualFixed * reference.merchandiseRevenue, BigInt(12) * reference.manufacturingMargin);
 
-  const allMonthlySalesComplete = validatedMonthlySales.length > 0 && monthly.completeCount === validatedMonthlySales.length;
-  const coverageDelta = allMonthlySalesComplete && monthlyFixed !== null
-    ? monthly.manufacturingMargin - monthlyFixed
-    : null;
+  let fixedCostCoverageReason: FixedCostCoverageUnavailableReason | null = null;
+  let fixedCostCoverageDelta: bigint | null = null;
+  if (eligibleTemplates.length === 0) fixedCostCoverageReason = "fixed-costs-not-configured";
+  else if (validatedMonthlySales.length === 0) fixedCostCoverageReason = "no-monthly-sales";
+  else if (monthly.completeCount !== validatedMonthlySales.length) fixedCostCoverageReason = "incomplete-monthly-costing";
+  else {
+    if (monthlyFixed === null) throw new Error("DASHBOARD_INCONSISTENT_FIXED_COSTS");
+    fixedCostCoverageDelta = monthly.manufacturingMargin - monthlyFixed;
+  }
 
   return {
     cash: {
@@ -208,7 +214,10 @@ export function calculateDashboardMetrics(source: DashboardSourceData): Dashboar
       monthlyRevenueCents: breakEven === null ? null : safeNumber(breakEven),
       unavailableReason,
     },
-    fixedCostCoverageDeltaCents: coverageDelta === null ? null : safeNumber(coverageDelta),
+    fixedCostCoverage: {
+      deltaCents: fixedCostCoverageDelta === null ? null : safeNumber(fixedCostCoverageDelta),
+      unavailableReason: fixedCostCoverageReason,
+    },
     missingDocumentCount: source.missingDocuments.filter((expense) => expense.documentCount === 0).length,
   };
 }

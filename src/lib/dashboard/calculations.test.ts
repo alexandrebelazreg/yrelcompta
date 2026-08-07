@@ -179,7 +179,7 @@ describe("indicateurs du tableau de bord", () => {
       manufacturingMarginCents: 10_001,
     });
     expect(metrics.breakEven).toEqual({ monthlyRevenueCents: 29_999, unavailableReason: null });
-    expect(metrics.fixedCostCoverageDeltaCents).toBe(-4_000);
+    expect(metrics.fixedCostCoverage).toEqual({ deltaCents: -4_000, unavailableReason: null });
   });
 
   it("conserve un taux et une marge négatifs sans rendre disponible le seuil", () => {
@@ -216,13 +216,35 @@ describe("indicateurs du tableau de bord", () => {
 
   it("masque l’écart de couverture dès qu’une vente mensuelle est incomplète", () => {
     const incomplete = { ...completeSale(), costingComplete: false, manufacturingCostCents: null, manufacturingMarginCents: null };
-    expect(calculateDashboardMetrics(source({ monthlySales: [completeSale(), incomplete], recurringTemplates: [template()] })).fixedCostCoverageDeltaCents)
-      .toBeNull();
+    expect(calculateDashboardMetrics(source({ monthlySales: [completeSale(), incomplete], recurringTemplates: [template()] })).fixedCostCoverage)
+      .toEqual({ deltaCents: null, unavailableReason: "incomplete-monthly-costing" });
+  });
+
+  it("signale une vente historique non évaluée comme coût mensuel incomplet", () => {
+    const historical = {
+      ...completeSale(),
+      costingComplete: false,
+      costingEvaluated: false,
+      manufacturingCostCents: null,
+      manufacturingMarginCents: null,
+    };
+    expect(calculateDashboardMetrics(source({ monthlySales: [historical], recurringTemplates: [template()] })).fixedCostCoverage)
+      .toEqual({ deltaCents: null, unavailableReason: "incomplete-monthly-costing" });
+  });
+
+  it("distingue l’absence de charges fixes malgré une vente complète", () => {
+    expect(calculateDashboardMetrics(source({ monthlySales: [completeSale()] })).fixedCostCoverage)
+      .toEqual({ deltaCents: null, unavailableReason: "fixed-costs-not-configured" });
+  });
+
+  it("distingue l’absence de vente mensuelle lorsque les charges fixes sont configurées", () => {
+    expect(calculateDashboardMetrics(source({ recurringTemplates: [template()] })).fixedCostCoverage)
+      .toEqual({ deltaCents: null, unavailableReason: "no-monthly-sales" });
   });
 
   it("affiche aussi un écart de couverture positif", () => {
     const metrics = calculateDashboardMetrics(source({ monthlySales: [completeSale(30_000, 10_000)], recurringTemplates: [template()] }));
-    expect(metrics.fixedCostCoverageDeltaCents).toBe(10_000);
+    expect(metrics.fixedCostCoverage).toEqual({ deltaCents: 10_000, unavailableReason: null });
   });
 
   it("compte les justificatifs manquants parmi plus de 1 000 lignes", () => {

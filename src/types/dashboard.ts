@@ -73,6 +73,11 @@ export type BreakEvenUnavailableReason =
   | "non-positive-reference-revenue"
   | "non-positive-reference-margin";
 
+export type FixedCostCoverageUnavailableReason =
+  | "fixed-costs-not-configured"
+  | "no-monthly-sales"
+  | "incomplete-monthly-costing";
+
 export interface DashboardMetrics {
   cash: {
     grossCollectedCents: number;
@@ -109,6 +114,9 @@ export interface DashboardMetrics {
     monthlyRevenueCents: number | null;
     unavailableReason: BreakEvenUnavailableReason | null;
   };
-  fixedCostCoverageDeltaCents: number | null;
+  fixedCostCoverage: {
+    deltaCents: number | null;
+    unavailableReason: FixedCostCoverageUnavailableReason | null;
+  };
   missingDocumentCount: number;
 }
