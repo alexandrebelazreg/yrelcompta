@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { parseFrenchMoneyToCents } from "./calculations";
+import { calculateSaleSubtotal, parseFrenchMoneyToCents } from "./calculations";
 
 const moneySchema = z.string().trim().min(1, "Le montant est requis.").transform((value, context) => {
   try { return parseFrenchMoneyToCents(value); } catch { context.addIssue({ code: "custom", message: "Saisissez un montant positif avec deux décimales maximum." }); return z.NEVER; }
@@ -9,16 +9,26 @@ const optionalMoneySchema = z.string().trim().transform((value, context) => {
   try { return parseFrenchMoneyToCents(value); } catch { context.addIssue({ code: "custom", message: "Saisissez un montant positif avec deux décimales maximum." }); return z.NEVER; }
 });
 
-export const saleItemSchema = z.object({ description: z.string().trim().min(1, "La description est requise.").max(300), quantity: z.coerce.number().int().min(1).max(999), unitPrice: moneySchema });
+export const saleItemSchema = z.object({
+  description: z.string().trim().min(1, "La description est requise.").max(300),
+  quantity: z.coerce.number().int().min(1).max(999),
+  unitPrice: moneySchema,
+  productId: z.union([z.uuid("L’identifiant du produit est invalide."), z.null()]).optional(),
+}).strict();
 export const saleFormSchema = z.object({
   saleId: z.string().uuid().optional(), orderedOn: z.iso.date("La date de commande est invalide."),
   channel: z.enum(["direct", "market", "instagram", "etsy", "website", "shopify", "retailer", "other"]),
   customerName: z.string().trim().max(160), notes: z.string().trim().max(2000), shipping: optionalMoneySchema, discount: optionalMoneySchema,
   items: z.array(saleItemSchema).min(1, "Ajoutez au moins une ligne.").max(200),
-}).refine((data) => data.discount <= data.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0) + data.shipping, { path: ["discount"], message: "La remise dépasse le total avant remise." })
+}).refine((data) => {
+  try { return data.discount <= calculateSaleSubtotal(data.items.map((item) => ({ quantity: item.quantity, unit_price_cents: item.unitPrice }))) + data.shipping; }
+  catch { return false; }
+}, { path: ["discount"], message: "La remise dépasse le total avant remise." })
   .refine((data) => {
-  const subtotal = data.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-  return Number.isSafeInteger(subtotal) && Number.isSafeInteger(subtotal + data.shipping - data.discount);
+  try {
+    const subtotal = calculateSaleSubtotal(data.items.map((item) => ({ quantity: item.quantity, unit_price_cents: item.unitPrice })));
+    return Number.isSafeInteger(subtotal + data.shipping - data.discount);
+  } catch { return false; }
   }, { path: ["items"], message: "Le total dépasse la limite monétaire autorisée." });
 
 export const paymentFormSchema = z.object({

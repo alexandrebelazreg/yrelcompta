@@ -9,7 +9,26 @@ export interface SaleItem {
   quantity: number;
   unit_price_cents: number;
   line_total_cents: number;
+  product_id: string | null;
+  product_name_snapshot: string | null;
+  product_sku_snapshot: string | null;
+  unit_raw_materials_cost_cents: number | null;
+  unit_material_loss_cost_cents: number | null;
+  unit_labor_cost_cents: number | null;
+  unit_packaging_cost_cents: number | null;
+  unit_manufacturing_cost_cents: number | null;
+  line_manufacturing_cost_cents: number | null;
+  line_margin_before_discount_cents: number | null;
   position: number;
+  product: { name: string; sku: string | null; is_active: boolean } | null;
+}
+
+export interface SaleProductOption {
+  id: string;
+  name: string;
+  sku: string | null;
+  sale_price_cents: number;
+  is_active: boolean;
 }
 
 export interface Refund {
@@ -47,6 +66,10 @@ export interface Sale {
   shipping_cents: number;
   discount_cents: number;
   total_cents: number;
+  manufacturing_cost_cents: number | null;
+  manufacturing_margin_cents: number | null;
+  costing_complete: boolean;
+  costing_evaluated: boolean;
   validated_at: string | null;
   cancelled_at: string | null;
   cancellation_reason: string | null;

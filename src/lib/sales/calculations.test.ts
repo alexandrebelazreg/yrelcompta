@@ -1,11 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { calculateMonthlyRevenue, calculateSaleFinancials, calculateSalesTotals, calculateSaleSubtotal, calculateSaleTotal, formatEuroCents, parseFrenchMoneyToCents, type SalesTotalsSource } from "./calculations";
+import { calculateHistoricalManufacturingCost, calculateLineManufacturingCost, calculateManufacturingMarginAfterDiscount, calculateManufacturingMarginRate, calculateMonthlyRevenue, calculateSaleFinancials, calculateSalesTotals, calculateSaleSubtotal, calculateSaleTotal, formatEuroCents, getSaleCostingState, hasIncompleteHistoricalCost, parseFrenchMoneyToCents, toSafeIntegerAmount, type SalesTotalsSource } from "./calculations";
 
 describe("parseFrenchMoneyToCents", () => {
   it.each([["0", 0], ["12", 1200], ["12,5", 1250], ["12,50", 1250], ["12.50", 1250], ["1 234,56", 123456]])("convertit %s", (input, expected) => expect(parseFrenchMoneyToCents(input)).toBe(expected));
   it.each(["12,345", "-1", "douze", ""])("refuse %s", (input) => expect(() => parseFrenchMoneyToCents(input)).toThrow());
   it("refuse les valeurs dépassant les entiers sûrs", () => expect(() => parseFrenchMoneyToCents("90071992547410,00")).toThrow());
   it("formate explicitement des centimes", () => expect(formatEuroCents(1250)).toBe("12,50 €"));
+});
+
+describe("coûts historiques de fabrication", () => {
+  const completeItems = [
+    { product_id: "p1", unit_manufacturing_cost_cents: 500, line_manufacturing_cost_cents: 1000 },
+    { product_id: "p2", unit_manufacturing_cost_cents: 250, line_manufacturing_cost_cents: 250 },
+  ];
+  it("additionne exactement le coût historique total", () => expect(calculateHistoricalManufacturingCost(completeItems)).toBe(1250));
+  it("détecte une vente au coût incomplet", () => expect(hasIncompleteHistoricalCost([...completeItems, { product_id: null, unit_manufacturing_cost_cents: null, line_manufacturing_cost_cents: null }])).toBe(true));
+  it("ne renvoie jamais un total partiel", () => expect(calculateHistoricalManufacturingCost([...completeItems, { product_id: null, unit_manufacturing_cost_cents: null, line_manufacturing_cost_cents: null }])).toBeNull());
+  it("accepte un coût nul", () => expect(calculateHistoricalManufacturingCost([{ product_id: "p", unit_manufacturing_cost_cents: 0, line_manufacturing_cost_cents: 0 }])).toBe(0));
+  it("multiplie le coût unitaire par la quantité avec BigInt", () => expect(calculateLineManufacturingCost(3, 725)).toBe(2175));
+  it("refuse une multiplication dépassant la plage sûre", () => expect(() => calculateLineManufacturingCost(Number.MAX_SAFE_INTEGER, 2)).toThrow("MONETARY_VALUE_OUT_OF_SAFE_RANGE"));
+  it("calcule une marge négative après remise", () => expect(calculateManufacturingMarginAfterDiscount(1000, 200, 1200)).toBe(-400));
+  it("inclut la remise dans la marge", () => expect(calculateManufacturingMarginAfterDiscount(5000, 500, 2000)).toBe(2500));
+  it("calcule le taux sur les marchandises après remise", () => expect(calculateManufacturingMarginRate(5000, 500, 2250)).toBe(50));
+  it("omet le taux lorsque le dénominateur est nul", () => expect(calculateManufacturingMarginRate(500, 500, -100)).toBeNull());
+  it("refuse un bigint Supabase hors plage sûre", () => expect(() => toSafeIntegerAmount("9007199254740992")).toThrow("MONETARY_VALUE_OUT_OF_SAFE_RANGE"));
+});
+
+describe("état d'évaluation du coût d'une vente", () => {
+  it("distingue un brouillon non évalué", () => expect(getSaleCostingState({ status: "draft", costing_evaluated: false, costing_complete: false })).toBe("draft"));
+  it("distingue une ancienne vente non évaluée", () => expect(getSaleCostingState({ status: "validated", costing_evaluated: false, costing_complete: false })).toBe("historical-unassessed"));
+  it("distingue une vente évaluée incomplète", () => expect(getSaleCostingState({ status: "validated", costing_evaluated: true, costing_complete: false })).toBe("evaluated-incomplete"));
+  it("distingue une vente évaluée complète", () => expect(getSaleCostingState({ status: "validated", costing_evaluated: true, costing_complete: true })).toBe("evaluated-complete"));
+  it("conserve l'état évalué d'une vente annulée", () => expect(getSaleCostingState({ status: "cancelled", costing_evaluated: true, costing_complete: false })).toBe("evaluated-incomplete"));
+  it("rejette une vente complète non évaluée", () => expect(() => getSaleCostingState({ status: "validated", costing_evaluated: false, costing_complete: true })).toThrow("INCONSISTENT_SALE_COSTING_STATE"));
+  it("rejette un brouillon marqué comme évalué", () => expect(() => getSaleCostingState({ status: "draft", costing_evaluated: true, costing_complete: false })).toThrow("INCONSISTENT_SALE_COSTING_STATE"));
 });
 
 describe("calculs d'une vente", () => {

@@ -9,6 +9,12 @@ import { cancellationSchema, paymentFormSchema, refundFormSchema, saleFormSchema
 
 function rpcError(code?: string, message?: string): string {
   const text = message?.toLowerCase() ?? "";
+  if (text.includes("product_business_forbidden")) return "Ce produit appartient à une autre entreprise.";
+  if (text.includes("product_not_found")) return "Produit introuvable.";
+  if (text.includes("product_costing_failed")) return "Le calcul du coût de fabrication est impossible.";
+  if (text.includes("monetary_overflow") || code === "22003") return "Le montant dépasse la limite monétaire autorisée.";
+  if (text.includes("sale_already_validated")) return "Cette vente est déjà validée ou annulée.";
+  if (text.includes("inconsistent_snapshot_data")) return "Les données historiques de coût sont incohérentes.";
   if (code === "42501") return "Vous n’avez pas l’autorisation d’effectuer cette action.";
   if (code === "P0002") return text.includes("payment") ? "Encaissement introuvable." : "Vente introuvable.";
   if (code === "40001") return "Les données ont changé simultanément. Rechargez la page et réessayez.";
@@ -43,7 +49,7 @@ export async function saveSaleDraftAction(_: SalesActionState, formData: FormDat
   if (!parsed.success) return { error: "Corrigez les champs indiqués.", fieldErrors: parsed.error.flatten().fieldErrors };
   const context = await mutationContext();
   if ("error" in context) return { error: context.error };
-  const items = parsed.data.items.map((item) => ({ description: item.description, quantity: item.quantity, unit_price_cents: item.unitPrice }));
+  const items = parsed.data.items.map((item) => ({ description: item.description, quantity: item.quantity, unit_price_cents: item.unitPrice, product_id: item.productId ?? null }));
   const rpcName = parsed.data.saleId ? "update_sale_draft" : "create_sale_draft";
   const args = {
     ...(parsed.data.saleId ? { p_sale_id: parsed.data.saleId } : {}), p_business_id: context.businessId, p_ordered_on: parsed.data.orderedOn,

@@ -126,6 +126,16 @@ N’ajoutez aucune clé Supabase privée ou `service_role` dans Netlify pour cet
 
 Le module permet de créer et modifier une vente en brouillon, puis de la valider définitivement. Une vente validée conserve ses lignes, montants, date et canal. Les encaissements et remboursements sont également immuables : une erreur d’encaissement est corrigée par un remboursement de type `correction`.
 
+Une ligne peut être liée à un produit du catalogue ou rester en saisie libre. La sélection reprend le nom et le prix catalogue courants, mais la description et le prix réellement vendu restent modifiables dans le brouillon. Une évolution ultérieure du prix catalogue ne remplace jamais le prix saisi sur la vente.
+
+Le coût produit n’est pas copié lors de la création du brouillon. Au moment exact de la validation définitive, la base recalcule atomiquement le coût courant (matières, pertes, main-d’œuvre et emballage), puis fige le nom, le SKU et chaque composante sur la ligne. Les changements ultérieurs du produit, de sa recette, des matières ou des paramètres de coût ne modifient donc jamais la vente validée.
+
+Lorsque toutes les lignes sont liées à un produit, la marge historique est :
+
+`sous-total marchandises - remise globale - coût de fabrication historique total`
+
+La livraison est exclue, comme les commissions de paiement ou de plateforme, remboursements, cotisations, TVA et impôt. Une ligne libre reste autorisée et les éventuelles lignes produit de la même vente sont bien figées, mais la marge totale est alors déclarée indisponible. Les ventes validées avant l’ajout des snapshots restent sans coût historique : aucun coût courant approximatif n’est reconstitué a posteriori.
+
 Tous les montants sont enregistrés sous forme d’entiers représentant des centimes d’euro. Le montant brut payé par la cliente alimente le chiffre d’affaires suivi. Une commission de plateforme est affichée séparément et ne réduit jamais ce montant brut :
 
 - brut encaissé : somme payée par la cliente ;
@@ -137,15 +147,15 @@ Les tables métier sont en lecture seule via l’API Supabase. Toutes les écrit
 
 ### Parcours manuel de test
 
-1. Connectez-vous avec un propriétaire ou un membre de l’entreprise.
-2. Ouvrez **Ventes**, créez un brouillon avec plusieurs lignes et vérifiez le total affiché.
-3. Modifiez le brouillon, puis validez-le.
-4. Vérifiez que ses lignes et montants ne sont plus modifiables.
-5. Enregistrez un encaissement partiel avec une commission et contrôlez les montants brut et net.
-6. Complétez l’encaissement, puis enregistrez un remboursement partiel ou total.
-7. Vérifiez que le remboursement n’augmente pas le reste à encaisser.
-8. Après remboursement intégral, annulez la vente avec un motif.
-9. Vérifiez le chiffre d’affaires encaissé du mois sur le tableau de bord.
+1. Créez un produit et notez son coût de fabrication courant.
+2. Créez un brouillon de vente lié à ce produit.
+3. Modifiez le coût d’une matière avant validation.
+4. Validez la vente et vérifiez que ce nouveau coût est figé.
+5. Modifiez à nouveau le produit ou la matière et vérifiez que la vente validée ne change plus.
+6. Créez une vente avec une ligne libre et vérifiez que la marge totale est déclarée indisponible.
+7. Vérifiez qu’une remise réduit la marge et que la livraison ne la modifie pas.
+8. Enregistrez un encaissement avec commission, puis un remboursement, et vérifiez qu’ils ne recalculent aucun snapshot.
+9. Après remboursement intégral, annulez la vente et vérifiez que ses coûts historiques sont conservés.
 
 ## Dépenses et justificatifs
 
