@@ -20,6 +20,7 @@ export interface BusinessSettings {
   business_id: string;
   declaration_period: DeclarationPeriod;
   vat_regime: VatRegime;
+  activity_started_on: string | null;
   has_acre: boolean;
   currency: "EUR";
   timezone: "Europe/Paris";

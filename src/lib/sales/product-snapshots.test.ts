@@ -28,10 +28,10 @@ describe("contrat des lignes de brouillon", () => {
 });
 
 describe("migration des snapshots de vente", () => {
-  it("est l'unique nouvelle migration au timestamp demandé", () => {
+  it("conserve l'unique migration de snapshots au timestamp demandé", () => {
     const migrations = readdirSync(join(root, "supabase/migrations")).filter((name) => name.endsWith(".sql"));
-    expect(migrations.at(-1)).toBe("20260807010000_sales_product_snapshots.sql");
-    expect(migrations.filter((name) => name > "20260806210000_products_costing.sql")).toEqual(["20260807010000_sales_product_snapshots.sql"]);
+    expect(migrations).toContain("20260807010000_sales_product_snapshots.sql");
+    expect(migrations.filter((name) => name.includes("sales_product_snapshots"))).toEqual(["20260807010000_sales_product_snapshots.sql"]);
   });
   it("ne contient aucun script appliquant la migration", () => expect(packageJson).not.toContain("supabase db push"));
   it("ajoute l'association produit isolée par entreprise avec suppression interdite", () => {
