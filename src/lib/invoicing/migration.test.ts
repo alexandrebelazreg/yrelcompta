@@ -39,12 +39,28 @@ describe("migration de facturation", () => {
     expect(audit).not.toMatch(/issuer_address|issuer_email|issuer_phone/);
   });
   it("crée une clé de compteur par entreprise, type et année", () => expect(sql).toContain("primary key (business_id, document_kind, series_year)"));
-  it("ajoute la clé composite des remboursements avant la FK du document", () => {
-    const unique = "constraint refunds_id_business_sale_key unique (id, business_id, sale_id)";
+  it("prévoit la création de la clé composite lorsque la base ne la possède pas", () => {
+    expect(sql).toContain("if existing_definition is null then alter table public.refunds add constraint refunds_id_business_sale_key unique (id, business_id, sale_id)");
+  });
+  it("lit la contrainte existante dans les catalogues PostgreSQL", () => {
+    expect(sql).toContain("from pg_catalog.pg_constraint as constraint_row");
+    expect(sql).toContain("pg_catalog.pg_get_constraintdef(constraint_row.oid)");
+    expect(sql).toContain("namespace_row.nspname = 'public'");
+    expect(sql).toContain("relation_row.relname = 'refunds'");
+  });
+  it("accepte uniquement la définition UNIQUE exacte", () => {
+    expect(sql).toContain("existing_definition <> 'UNIQUE (id, business_id, sale_id)'");
+    expect(sql).toContain("unique (id, business_id, sale_id)");
+  });
+  it("lève une exception explicite si la définition existante diffère", () => {
+    expect(sql).toContain("raise exception 'refunds_id_business_sale_key has unexpected definition: %', existing_definition");
+    expect(sql).toContain("using errcode = '23514'");
+  });
+  it("conserve la FK composite après la vérification idempotente", () => {
+    const lookup = "pg_catalog.pg_get_constraintdef(constraint_row.oid)";
     const foreignKey = "billing_documents_refund_business_sale_fk foreign key (linked_refund_id, business_id, sale_id) references public.refunds(id, business_id, sale_id)";
-    expect(sql).toContain(unique);
     expect(sql).toContain(foreignKey);
-    expect(sql.indexOf(unique)).toBeLessThan(sql.indexOf(foreignKey));
+    expect(sql.indexOf(lookup)).toBeLessThan(sql.indexOf(foreignKey));
     expect(salesMigration).not.toContain("refunds_id_business_sale_key");
   });
   it("n’utilise aucune séquence PostgreSQL", () => expect(migration).not.toMatch(/nextval|create sequence/i));

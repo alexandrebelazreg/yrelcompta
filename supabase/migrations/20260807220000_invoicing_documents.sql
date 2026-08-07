@@ -51,9 +51,29 @@ create table public.billing_number_counters (
   constraint billing_number_counters_value check (last_value > 0)
 );
 
-alter table public.refunds
-  add constraint refunds_id_business_sale_key
-  unique (id, business_id, sale_id);
+do $$
+declare
+  existing_definition text;
+begin
+  select pg_catalog.pg_get_constraintdef(constraint_row.oid)
+    into existing_definition
+    from pg_catalog.pg_constraint as constraint_row
+    join pg_catalog.pg_class as relation_row on relation_row.oid = constraint_row.conrelid
+    join pg_catalog.pg_namespace as namespace_row on namespace_row.oid = relation_row.relnamespace
+    where namespace_row.nspname = 'public'
+      and relation_row.relname = 'refunds'
+      and constraint_row.conname = 'refunds_id_business_sale_key';
+
+  if existing_definition is null then
+    alter table public.refunds
+      add constraint refunds_id_business_sale_key
+      unique (id, business_id, sale_id);
+  elsif existing_definition <> 'UNIQUE (id, business_id, sale_id)' then
+    raise exception 'refunds_id_business_sale_key has unexpected definition: %', existing_definition
+      using errcode = '23514';
+  end if;
+end;
+$$;
 
 create table public.billing_documents (
   id uuid primary key default gen_random_uuid(),
