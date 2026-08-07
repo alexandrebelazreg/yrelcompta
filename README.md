@@ -52,7 +52,7 @@ supabase link --project-ref VOTRE_REFERENCE
 supabase db push
 ```
 
-La migration initiale crée `profiles`, `businesses`, `business_members`, `business_settings` et `audit_logs`. La migration `20260805010000_sales_payments.sql` ajoute les ventes, lignes, encaissements et remboursements. La migration `20260805180000_expenses_documents.sql` ajoute les dépenses, fournisseurs, paiements, remboursements fournisseurs, justificatifs privés et modèles récurrents. La migration `20260807120000_registers_declarations.sql` prépare la date légale de début d’activité et l’historique immuable des déclarations ; elle doit être relue avant toute application.
+La migration initiale crée `profiles`, `businesses`, `business_members`, `business_settings` et `audit_logs`. La migration `20260805010000_sales_payments.sql` ajoute les ventes, lignes, encaissements et remboursements. La migration `20260805180000_expenses_documents.sql` ajoute les dépenses, fournisseurs, paiements, remboursements fournisseurs, justificatifs privés et modèles récurrents. La migration `20260807120000_registers_declarations.sql` prépare la date légale de début d’activité et l’historique immuable des déclarations. La migration `20260807220000_invoicing_documents.sql` prépare la facturation commerciale, les avoirs et leurs compteurs transactionnels ; ces migrations doivent être relues avant toute application.
 
 Avant d’appliquer une nouvelle migration sur un projet lié, inspectez toujours le plan :
 
@@ -272,6 +272,34 @@ Le **montant déclaré** reste celui saisi par l’utilisatrice. Lorsqu’il dif
 7. Testez une période avec remboursement client puis une entreprise assujettie à la TVA : la proposition doit être indisponible avec le message approprié.
 8. Enregistrez une correction motivée et vérifiez que la révision précédente reste consultable et inchangée.
 9. Vérifiez que la date de début d’activité ne peut plus être corrigée après l’enregistrement d’une déclaration.
+
+## Facturation et documents clients
+
+Une **vente** décrit l’opération commerciale, une **facture** fige le document adressé au client, un **paiement** décrit l’encaissement, un **remboursement** décrit le mouvement financier inverse et un **avoir** corrige monétairement une facture. Ces objets restent distincts : émettre une facture ne crée aucun paiement et émettre un avoir ne crée aucun remboursement.
+
+Une facture est générée uniquement depuis une vente validée. Son émission relit en base les lignes, la livraison, la remise, les totaux, le régime TVA et les paramètres de facturation. Identité vendeur, données client, mention de franchise, conditions B2B et montants deviennent des snapshots immuables. Le PDF est ensuite régénéré exclusivement depuis ces snapshots : modifier les paramètres courants ne change jamais une ancienne facture.
+
+La numérotation repose sur des lignes compteurs transactionnelles verrouillées dans la même transaction que le document. Les factures utilisent `FAC-YYYY-000001` et les avoirs une série indépendante `AV-YYYY-000001`, par entreprise et par année. Aucune `SEQUENCE` PostgreSQL ou `nextval` n’est utilisée : un rollback annule aussi l’incrément. Factures, avoirs et lignes ne peuvent être modifiés ni supprimés et doivent pouvoir être conservés pendant **10 ans**.
+
+Cette V1 émet uniquement pour une entreprise configurée en **franchise de TVA**. Elle pose `vat_cents = 0`, conserve HT = TTC dans ce modèle et snapshote la mention configurée, proposée initialement comme « TVA non applicable, art. 293 B du CGI ». Si le régime est `liable`, l’émission est bloquée : aucun taux n’est codé en dur et YrelCompta ne tente jamais de reconstituer la TVA.
+
+La facturation professionnelle V1 couvre les clients professionnels français et exige leur SIREN à 9 chiffres. La facturation internationale n’est pas encore modélisée ; cette version n’ajoute donc aucune règle de TVA internationale.
+
+Une correction passe par un nouvel avoir immuable qui référence la facture initiale. Plusieurs avoirs partiels sont possibles sans dépasser le total facturé. Un avoir peut être relié à un remboursement de la même vente et du même montant, sans créer ni modifier ce remboursement. Une vente facturée ne peut être annulée qu’après crédit intégral et lorsque les règles historiques d’encaissement net nul sont également satisfaites.
+
+Les PDF sont produits à la demande côté serveur avec PDFKit et une police Noto Sans embarquée, sans navigateur headless ni Storage. Ils gèrent les documents multipages, rappellent type, numéro et pagination sur chaque page, et n’intègrent aucune donnée dynamique de paiement, coût de fabrication, marge ou commission.
+
+Le PDF généré par YrelCompta est un document commercial ; il n’est pas, à lui seul, une facture électronique au sens de la réforme française. La réception électronique devient une obligation générale à compter du **1er septembre 2026**. L’émission électronique et le e-reporting pour les micro-entreprises et PME sont prévus au **1er septembre 2027**. Cette version n’intègre aucune plateforme agréée, PDP, transmission B2B réglementaire, e-reporting ou envoi par e-mail.
+
+### Parcours manuel de test de la facturation
+
+1. Configurez l’identité EI, le SIRET, l’adresse, la mention de franchise et les quatre textes B2B dans `/parametres/facturation`.
+2. Depuis une vente validée, ouvrez **Créer une facture**, vérifiez les sources affichées et confirmez le type d’opération ainsi que les données client.
+3. Téléchargez le PDF, contrôlez les accents, le numéro, les snapshots vendeur/client, la mention TVA et les conditions applicables.
+4. Émettez un avoir partiel puis un second avoir ; vérifiez que le total ne peut dépasser la facture initiale.
+5. Reliez un remboursement du même montant à un avoir et contrôlez que les deux opérations restent présentées séparément.
+6. Vérifiez les factures et avoirs dans `/documents`, sans URL Storage signée.
+7. Utilisez une longue vente pour contrôler les en-têtes, pieds de page et numéros de pages du PDF multipage.
 
 ## Limites de cette version
 

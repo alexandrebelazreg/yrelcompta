@@ -23,6 +23,7 @@ function rpcError(code?: string, message?: string): string {
   if (text.includes("payment exceeds")) return "Cet encaissement dépasserait le total de la vente.";
   if (text.includes("refund exceeds")) return "Le remboursement dépasse le montant encore remboursable.";
   if (text.includes("non-zero net payment")) return "La vente ne peut être annulée tant que son encaissement net n’est pas nul.";
+  if (text.includes("billed_sale_requires_full_credit")) return "La vente facturée doit être intégralement couverte par des avoirs avant son annulation.";
   if (code === "22023" || code === "23514") return "Les données sont incohérentes. Vérifiez les montants et les dates.";
   return "Une erreur inattendue est survenue. Réessayez dans quelques instants.";
 }

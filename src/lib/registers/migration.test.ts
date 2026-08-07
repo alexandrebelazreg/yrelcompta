@@ -16,9 +16,12 @@ function sqlFunction(name: string, nextMarker: string): string {
 }
 
 describe("migration registres et déclarations", () => {
-  it("est l’unique migration ajoutée après les snapshots de vente", () => {
+  it("précède immédiatement la migration de facturation", () => {
     const migrations = readdirSync(join(root, "supabase/migrations")).filter((name) => name.endsWith(".sql")).sort();
-    expect(migrations.filter((name) => name > "20260807010000_sales_product_snapshots.sql")).toEqual([migrationName]);
+    expect(migrations.filter((name) => name > "20260807010000_sales_product_snapshots.sql")).toEqual([
+      migrationName,
+      "20260807220000_invoicing_documents.sql",
+    ]);
   });
 
   it("ajoute la date légale sans utiliser businesses.created_at", () => {
