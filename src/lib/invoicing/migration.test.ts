@@ -14,7 +14,7 @@ const creditFn = fn("public.issue_credit_note", "create or replace function publ
 const cancelFn = fn("public.cancel_sale", "revoke all on function public.save_invoice_settings");
 
 describe("migration de facturation", () => {
-  it("est l’unique migration postérieure aux registres", () => expect(readdirSync(join(root, "supabase/migrations")).filter((name) => name > "20260807120000_registers_declarations.sql").sort()).toEqual([migrationName]));
+  it("précède immédiatement la migration fiscale", () => expect(readdirSync(join(root, "supabase/migrations")).filter((name) => name > "20260807120000_registers_declarations.sql").sort()).toEqual([migrationName, "20260808120000_fiscal_social_rules.sql"]));
   it("crée les trois enums métier sans valeur implicite", () => {
     expect(sql).toContain("billing_document_kind as enum ('invoice', 'credit_note')");
     expect(sql).toContain("billing_customer_kind as enum ('individual', 'professional')");

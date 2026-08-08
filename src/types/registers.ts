@@ -79,6 +79,18 @@ export interface TurnoverDeclaration {
   externalReference: string | null;
   adjustmentReason: string | null;
   createdAt: string;
+  fiscalEvaluated: boolean;
+  fiscalProfileId: string | null;
+  fiscalRuleVersionId: string | null;
+  acreRuleVersionId: string | null;
+  socialRateBasisPointsSnapshot: number | null;
+  cfpRateBasisPointsSnapshot: number | null;
+  versementLiberatoireBasisPointsSnapshot: number | null;
+  acreAppliedSnapshot: boolean | null;
+  estimatedSocialContributionsCents: number | null;
+  estimatedCfpCents: number | null;
+  estimatedIncomeTaxCents: number | null;
+  estimatedTotalReserveCents: number | null;
 }
 
 export interface DeclarationPeriodItem {

@@ -1,5 +1,6 @@
 import type { ExpenseCategory, ExpenseCostBehavior, ExpenseNature, RecurrenceFrequency } from "@/types/expenses";
 import type { SaleChannel, SaleStatus } from "@/types/sales";
+import type { DashboardFiscalReserve, FiscalCalculationContext } from "@/types/fiscal-social";
 
 export interface DashboardMonth {
   key: string;
@@ -65,6 +66,8 @@ export interface DashboardSourceData {
   recurringTemplates: DashboardRecurringTemplate[];
   missingDocuments: DashboardMissingDocument[];
   recentSales: DashboardRecentSale[];
+  fiscalCalculationDate: string;
+  fiscalContext: FiscalCalculationContext;
 }
 
 export type BreakEvenUnavailableReason =
@@ -119,4 +122,5 @@ export interface DashboardMetrics {
     unavailableReason: FixedCostCoverageUnavailableReason | null;
   };
   missingDocumentCount: number;
+  fiscalReserve: DashboardFiscalReserve;
 }

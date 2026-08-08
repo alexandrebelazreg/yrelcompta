@@ -16,6 +16,8 @@ import type { ExpenseCategory, ExpenseCostBehavior, ExpenseNature, RecurrenceFre
 import type { SaleChannel } from "@/types/sales";
 import type { SaleStatus } from "@/types/sales";
 import { loadAllDashboardPages } from "./pagination";
+import { previousIsoDate } from "@/lib/fiscal-social/calculations";
+import { getFiscalCalculationContext } from "@/lib/fiscal-social/queries";
 
 const FAILURE_CODE = "DASHBOARD_DATA_LOAD_FAILED";
 
@@ -150,6 +152,9 @@ async function loadData(businessId: string, month: DashboardMonth): Promise<Dash
     }));
   })();
 
+  const fiscalCalculationDate = previousIsoDate(month.end);
+  const fiscalContext = getFiscalCalculationContext(businessId, fiscalCalculationDate);
+
   const [
     loadedPayments,
     loadedCustomerRefunds,
@@ -160,6 +165,7 @@ async function loadData(businessId: string, month: DashboardMonth): Promise<Dash
     loadedRecurringTemplates,
     loadedMissingDocuments,
     loadedRecentSales,
+    loadedFiscalContext,
   ] = await Promise.all([
     payments,
     customerRefunds,
@@ -170,6 +176,7 @@ async function loadData(businessId: string, month: DashboardMonth): Promise<Dash
     recurringTemplates,
     missingDocuments,
     recentSales,
+    fiscalContext,
   ]);
 
   return {
@@ -182,6 +189,8 @@ async function loadData(businessId: string, month: DashboardMonth): Promise<Dash
     recurringTemplates: loadedRecurringTemplates,
     missingDocuments: loadedMissingDocuments,
     recentSales: loadedRecentSales,
+    fiscalCalculationDate,
+    fiscalContext: loadedFiscalContext,
   };
 }
 

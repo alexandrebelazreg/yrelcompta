@@ -9,6 +9,7 @@ import { formatEuroCents } from "@/lib/sales/calculations";
 import { saleChannelLabels } from "@/lib/sales/labels";
 import { formatFrenchDate } from "@/lib/utils/format";
 import type { BreakEvenUnavailableReason, DashboardMetrics, DashboardRecentSale } from "@/types/dashboard";
+import { fiscalReserveUnavailableMessages, formatBasisPoints } from "@/lib/fiscal-social/presentation";
 
 interface DashboardPageProps {
   searchParams: Promise<{ mois?: string | string[] }>;
@@ -70,6 +71,21 @@ function DashboardContent({ metrics, recentSales }: { metrics: DashboardMetrics;
         <strong>{metrics.profitability.completeCount} ventes avec coût complet sur {metrics.profitability.saleCount} ventes validées</strong>
         <span>{metrics.profitability.incompleteCount} incomplètes · {metrics.profitability.historicalCount} historiques non évaluées</span>
       </div>
+    </section>
+
+    <section className="dashboard-section" aria-labelledby="fiscal-reserve-heading">
+      <div className="section-heading"><div><p className="eyebrow">Prévision de trésorerie distincte</p><h2 id="fiscal-reserve-heading">Réserve fiscale et sociale estimée</h2></div><Link className="secondary-link" href="/parametres/fiscalite">Gérer les paramètres fiscaux</Link></div>
+      {metrics.fiscalReserve.calculation ? <>
+        <div className="metric-grid">
+          <Card><p>CA encaissé utilisé comme base</p><strong>{formatEuroCents(metrics.fiscalReserve.calculation.turnoverCents)}</strong><small>Encaissements bruts du mois, sans remboursement client</small></Card>
+          <Card><p>Cotisations sociales estimées</p><strong>{formatEuroCents(metrics.fiscalReserve.calculation.estimatedSocialContributionsCents)}</strong><small>Taux effectif {formatBasisPoints(metrics.fiscalReserve.calculation.socialRateBasisPoints)}{metrics.fiscalReserve.calculation.acreApplied ? " avec ACRE" : ""}</small></Card>
+          <Card><p>CFP estimée</p><strong>{formatEuroCents(metrics.fiscalReserve.calculation.estimatedCfpCents)}</strong><small>Taux {formatBasisPoints(metrics.fiscalReserve.calculation.cfpRateBasisPoints)}, jamais réduit par l’ACRE</small></Card>
+          {metrics.fiscalReserve.calculation.versementLiberatoireBasisPoints > 0 && <Card><p>Versement libératoire estimé</p><strong>{formatEuroCents(metrics.fiscalReserve.calculation.estimatedIncomeTaxCents)}</strong><small>Taux {formatBasisPoints(metrics.fiscalReserve.calculation.versementLiberatoireBasisPoints)}</small></Card>}
+          <Card><p>Réserve totale estimée</p><strong>{formatEuroCents(metrics.fiscalReserve.calculation.estimatedTotalReserveCents)}</strong><small>Cotisations sociales + CFP + versement libératoire activé</small></Card>
+          <Card><p>Flux net suivi après réserve estimée</p><strong>{moneyOrUnavailable(metrics.fiscalReserve.trackedCashAfterReserveCents)}</strong><small>Flux net suivi actuel moins cette réserve. Ce n’est ni un bénéfice net, ni le montant réellement dû.</small></Card>
+        </div>
+        <p className="dashboard-note">Estimation interne de trésorerie uniquement. Hors CFE, TVA et impôt sur le revenu au barème progressif. YrelCompta ne transmet aucune déclaration.</p>
+      </> : <div className="card fiscal-reserve-unavailable"><strong>Estimation indisponible</strong><p>{metrics.fiscalReserve.unavailableReason ? fiscalReserveUnavailableMessages[metrics.fiscalReserve.unavailableReason] : "Données indisponibles."}</p></div>}
     </section>
 
     <section className="dashboard-section" aria-labelledby="break-even-heading">

@@ -14,6 +14,8 @@ import { formatEuroCents } from "@/lib/sales/calculations";
 import { getTodayInParis } from "@/lib/utils/date";
 import { formatFrenchDate } from "@/lib/utils/format";
 import type { DeclarationPeriodItem } from "@/types/registers";
+import type { TurnoverDeclaration } from "@/types/registers";
+import { formatBasisPoints } from "@/lib/fiscal-social/presentation";
 
 function moneyInput(cents: number): string {
   return `${Math.floor(cents / 100)},${String(cents % 100).padStart(2, "0")}`;
@@ -28,6 +30,29 @@ function DeclarationForm({ period, year, revision, today }: { period: Declaratio
     <p className="declaration-warning">Cette action n’envoie rien à l’Urssaf. Elle enregistre uniquement dans YrelCompta ce que vous avez déclaré.</p>
     <SubmitButton>{revision ? "Enregistrer une correction" : "Enregistrer comme déclarée"}</SubmitButton>
   </form>;
+}
+
+function FiscalSnapshot({ declaration, compact = false }: { declaration: TurnoverDeclaration; compact?: boolean }) {
+  if (!declaration.fiscalEvaluated) return <p className="fiscal-snapshot-unavailable">Estimation fiscale non évaluée historiquement.</p>;
+  const social = declaration.estimatedSocialContributionsCents;
+  const cfp = declaration.estimatedCfpCents;
+  const incomeTax = declaration.estimatedIncomeTaxCents;
+  const total = declaration.estimatedTotalReserveCents;
+  const socialRate = declaration.socialRateBasisPointsSnapshot;
+  const cfpRate = declaration.cfpRateBasisPointsSnapshot;
+  const incomeTaxRate = declaration.versementLiberatoireBasisPointsSnapshot;
+  if (social === null || cfp === null || incomeTax === null || total === null || socialRate === null || cfpRate === null || incomeTaxRate === null) {
+    return <p className="fiscal-snapshot-unavailable">Snapshot fiscal incohérent — aucun recalcul courant n’est affiché.</p>;
+  }
+  if (compact) return <span>Réserve estimée : {formatEuroCents(total)} · taux social {formatBasisPoints(socialRate)} · ACRE {declaration.acreAppliedSnapshot ? "oui" : "non"}</span>;
+  return <div className="declaration-fiscal-snapshot"><strong>Estimation fiscale figée avec cette révision</strong><dl className="declaration-metrics">
+    <div><dt>Taux social</dt><dd>{formatBasisPoints(socialRate)}</dd></div>
+    <div><dt>ACRE appliquée</dt><dd>{declaration.acreAppliedSnapshot ? "Oui" : "Non"}</dd></div>
+    <div><dt>Cotisations sociales estimées</dt><dd>{formatEuroCents(social)}</dd></div>
+    <div><dt>CFP ({formatBasisPoints(cfpRate)})</dt><dd>{formatEuroCents(cfp)}</dd></div>
+    <div><dt>Versement libératoire ({formatBasisPoints(incomeTaxRate)})</dt><dd>{formatEuroCents(incomeTax)}</dd></div>
+    <div><dt>Réserve totale estimée</dt><dd>{formatEuroCents(total)}</dd></div>
+  </dl><small>Estimation interne de trésorerie ; aucun montant n’est transmis à l’Urssaf ou aux impôts.</small></div>;
 }
 
 export default async function DeclarationsPage({ searchParams }: { searchParams: Promise<{ annee?: string | string[]; message?: string | string[]; erreur?: string | string[] }> }) {
@@ -57,8 +82,9 @@ export default async function DeclarationsPage({ searchParams }: { searchParams:
           return <article className="declaration-period card" key={period.periodStart}><header><div><h3>Du {formatFrenchDate(period.periodStart)} au {formatFrenchDate(period.periodEnd)}</h3><p>Échéance théorique : {formatFrenchDate(period.dueOn)}</p></div><span className={`declaration-status declaration-status-${period.uiStatus}`}>{declarationUiStatusLabels[period.uiStatus]}</span></header>
             <dl className="declaration-metrics"><div><dt>Encaissements bruts</dt><dd>{formatEuroCents(period.grossReceiptsCents)}</dd></div><div><dt>Remboursements clients</dt><dd>{formatEuroCents(period.customerRefundsCents)}</dd></div><div><dt>Montant proposé YrelCompta</dt><dd>{period.suggestedTurnoverCents === null ? "Indisponible" : formatEuroCents(period.suggestedTurnoverCents)}</dd></div><div><dt>Montant déclaré</dt><dd>{latest ? formatEuroCents(latest.declaredTurnoverCents) : "Non enregistré"}</dd></div><div><dt>Écart</dt><dd>{difference === null ? "Indisponible" : formatEuroCents(difference)}</dd></div><div><dt>Dernière révision</dt><dd>{latest ? `Révision ${latest.revisionNo}` : "—"}</dd></div></dl>
             <p className={`calculation-message calculation-message-${period.calculationStatus}`}>{calculationStatusMessages[period.calculationStatus]}</p>
+            {latest && <FiscalSnapshot declaration={latest}/>}
             {!latest && period.uiStatus !== "upcoming" && <details className="action-panel"><summary className="button">Enregistrer comme déclarée</summary><DeclarationForm period={period} year={year} revision={false} today={today}/></details>}
-            {latest && <><details className="action-panel"><summary className="secondary-link">Enregistrer une correction</summary><DeclarationForm period={period} year={year} revision today={today}/></details><details className="revision-history"><summary>Historique immuable — {period.revisions.length} révision(s)</summary><ol>{period.revisions.map((revision) => <li key={revision.id}><strong>Révision {revision.revisionNo} — {formatEuroCents(revision.declaredTurnoverCents)}</strong><span>Marquée comme déclarée le {formatFrenchDate(revision.submittedOn)} · enregistrée dans YrelCompta le {formatFrenchDate(revision.createdAt)}</span>{revision.adjustmentReason && <span>Motif : {revision.adjustmentReason}</span>}{revision.externalReference && <span>Référence : {revision.externalReference}</span>}</li>)}</ol></details></>}
+            {latest && <><details className="action-panel"><summary className="secondary-link">Enregistrer une correction</summary><DeclarationForm period={period} year={year} revision today={today}/></details><details className="revision-history"><summary>Historique immuable — {period.revisions.length} révision(s)</summary><ol>{period.revisions.map((revision) => <li key={revision.id}><strong>Révision {revision.revisionNo} — {formatEuroCents(revision.declaredTurnoverCents)}</strong><span>Marquée comme déclarée le {formatFrenchDate(revision.submittedOn)} · enregistrée dans YrelCompta le {formatFrenchDate(revision.createdAt)}</span>{revision.adjustmentReason && <span>Motif : {revision.adjustmentReason}</span>}{revision.externalReference && <span>Référence : {revision.externalReference}</span>}<FiscalSnapshot declaration={revision} compact/></li>)}</ol></details></>}
           </article>;
         })}
         {data.periods.length === 0 && <p className="history-empty">Aucune période déclarative ne se termine pendant cette année.</p>}

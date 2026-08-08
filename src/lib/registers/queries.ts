@@ -130,6 +130,18 @@ function normalizeDeclaration(value: Record<string, unknown>): TurnoverDeclarati
     externalReference: value.external_reference === null ? null : String(value.external_reference),
     adjustmentReason: value.adjustment_reason === null ? null : String(value.adjustment_reason),
     createdAt: String(value.created_at),
+    fiscalEvaluated: value.fiscal_evaluated === true,
+    fiscalProfileId: value.fiscal_profile_id === null ? null : String(value.fiscal_profile_id),
+    fiscalRuleVersionId: value.fiscal_rule_version_id === null ? null : String(value.fiscal_rule_version_id),
+    acreRuleVersionId: value.acre_rule_version_id === null ? null : String(value.acre_rule_version_id),
+    socialRateBasisPointsSnapshot: value.social_rate_basis_points_snapshot === null ? null : toSafeIntegerAmount(value.social_rate_basis_points_snapshot),
+    cfpRateBasisPointsSnapshot: value.cfp_rate_basis_points_snapshot === null ? null : toSafeIntegerAmount(value.cfp_rate_basis_points_snapshot),
+    versementLiberatoireBasisPointsSnapshot: value.versement_liberatoire_basis_points_snapshot === null ? null : toSafeIntegerAmount(value.versement_liberatoire_basis_points_snapshot),
+    acreAppliedSnapshot: value.acre_applied_snapshot === null ? null : value.acre_applied_snapshot === true,
+    estimatedSocialContributionsCents: value.estimated_social_contributions_cents === null ? null : toSafeIntegerAmount(value.estimated_social_contributions_cents),
+    estimatedCfpCents: value.estimated_cfp_cents === null ? null : toSafeIntegerAmount(value.estimated_cfp_cents),
+    estimatedIncomeTaxCents: value.estimated_income_tax_cents === null ? null : toSafeIntegerAmount(value.estimated_income_tax_cents),
+    estimatedTotalReserveCents: value.estimated_total_reserve_cents === null ? null : toSafeIntegerAmount(value.estimated_total_reserve_cents),
   };
 }
 
@@ -217,7 +229,7 @@ async function getDeclarations(businessId: string, year: number): Promise<Turnov
   const bounds = yearBounds(year);
   const rows = await loadAllRegisterPages(async (from, to) => {
     const { data, error } = await supabase.from("turnover_declarations")
-      .select("id,business_id,period_start,period_end,due_on,declaration_period_snapshot,vat_regime_snapshot,revision_no,previous_declaration_id,calculation_status,suggested_turnover_cents,gross_receipts_snapshot_cents,customer_refunds_snapshot_cents,payment_count_snapshot,refund_count_snapshot,declared_turnover_cents,submitted_on,external_reference,adjustment_reason,created_at")
+      .select("id,business_id,period_start,period_end,due_on,declaration_period_snapshot,vat_regime_snapshot,revision_no,previous_declaration_id,calculation_status,suggested_turnover_cents,gross_receipts_snapshot_cents,customer_refunds_snapshot_cents,payment_count_snapshot,refund_count_snapshot,declared_turnover_cents,submitted_on,external_reference,adjustment_reason,created_at,fiscal_evaluated,fiscal_profile_id,fiscal_rule_version_id,acre_rule_version_id,social_rate_basis_points_snapshot,cfp_rate_basis_points_snapshot,versement_liberatoire_basis_points_snapshot,acre_applied_snapshot,estimated_social_contributions_cents,estimated_cfp_cents,estimated_income_tax_cents,estimated_total_reserve_cents")
       .eq("business_id", businessId).gte("period_end", bounds.start).lt("period_end", bounds.end)
       .order("period_start", { ascending: true }).order("revision_no", { ascending: true }).order("id", { ascending: true }).range(from, to);
     return { data: data as unknown as Array<Record<string, unknown>> | null, error };

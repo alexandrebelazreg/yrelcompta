@@ -36,6 +36,18 @@ function declaration(revisionNo: number, declaredTurnoverCents: number, periodSt
     externalReference: null,
     adjustmentReason: revisionNo === 1 ? null : "Correction",
     createdAt: "2026-02-10T12:00:00Z",
+    fiscalEvaluated: false,
+    fiscalProfileId: null,
+    fiscalRuleVersionId: null,
+    acreRuleVersionId: null,
+    socialRateBasisPointsSnapshot: null,
+    cfpRateBasisPointsSnapshot: null,
+    versementLiberatoireBasisPointsSnapshot: null,
+    acreAppliedSnapshot: null,
+    estimatedSocialContributionsCents: null,
+    estimatedCfpCents: null,
+    estimatedIncomeTaxCents: null,
+    estimatedTotalReserveCents: null,
   };
 }
 
