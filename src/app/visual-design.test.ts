@@ -14,6 +14,9 @@ describe("identité visuelle Poudré chic", () => {
     expect(styles).toContain("--color-lavender: #e9e3f4");
     expect(styles).toContain("--color-sage: #dceadd");
     expect(styles).toContain("--color-peach: #f8e3d7");
+    expect(styles).toContain("--color-focus-ring: #914c66");
+    expect(styles).toContain("--color-warning-border: #ead4b4");
+    expect(styles).toContain("--color-danger-hover: #843740");
     expect(styles).toContain("--radius-card: 14px");
     expect(styles).toContain("--radius-control: 10px");
   });
@@ -23,6 +26,17 @@ describe("identité visuelle Poudré chic", () => {
     expect(styles).toMatch(/\.app-content \{[^}]*padding: 2rem/);
     expect(styles).toMatch(/:focus-visible \{[^}]*outline: 3px solid/);
     expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
+  });
+
+  it("ne neutralise pas le focus clavier des champs", () => {
+    const pointerFocus = styles.match(/\.input:focus\s*\{([^}]*)\}/)?.[1];
+    const keyboardFocus = styles.match(/\.input:focus-visible\s*\{([^}]*)\}/)?.[1];
+
+    expect(pointerFocus).toBeDefined();
+    expect(pointerFocus).not.toMatch(/outline\s*:\s*(?:0|none)/i);
+    expect(keyboardFocus).toBeDefined();
+    expect(keyboardFocus).toMatch(/outline:\s*3px solid var\(--color-focus-ring\)/);
+    expect(keyboardFocus).toMatch(/outline-offset:\s*2px/);
   });
 
   it("maintient la navigation complète sur desktop et mobile", () => {

@@ -23,8 +23,16 @@
   --color-blue-strong: #486677;
   --color-danger-soft: #f8e2e2;
   --color-danger: #99434c;
+  --color-danger-border: #ecc9cd;
+  --color-danger-hover: #843740;
   --color-warning-soft: #fff1dc;
   --color-warning: #765020;
+  --color-warning-border: #ead4b4;
+  --color-brand-soft-border: #ead4dc;
+  --color-focus-ring: #914c66;
+  --color-surface-success: #f0f6f1;
+  --color-surface-hover: #fdf8fa;
+  --color-surface-cash: #fff9f1;
   --shadow-card: 0 8px 30px rgb(70 50 60 / 6%);
   --shadow-raised: 0 14px 40px rgb(70 50 60 / 9%);
   --radius-control: 10px;
@@ -105,7 +113,8 @@ footer { color: var(--muted); padding: 2rem; text-align: center; }
 .field label { color: var(--color-text); font-size: .82rem; font-weight: 670; }
 .input { background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: var(--radius-control); color: var(--color-text); font-size: .9rem; min-height: 2.5rem; padding: .52rem .7rem; transition: border-color .15s ease, box-shadow .15s ease; width: 100%; }
 .input:hover { border-color: #cebcc3; }
-.input:focus { border-color: var(--color-brand); box-shadow: 0 0 0 3px rgb(166 95 120 / 12%); outline: 0; }
+.input:focus { border-color: var(--color-brand); box-shadow: 0 0 0 3px rgb(166 95 120 / 12%); }
+.input:focus-visible { border-color: var(--color-brand-hover); box-shadow: 0 0 0 5px var(--color-brand-soft); outline: 3px solid var(--color-focus-ring); outline-offset: 2px; }
 .input::placeholder { color: var(--color-text-muted); }
 .input:disabled { background: var(--color-surface-muted); color: var(--color-text-muted); cursor: not-allowed; }
 .input[aria-invalid="true"] { border-color: var(--color-danger); box-shadow: 0 0 0 3px rgb(153 67 76 / 10%); }
@@ -416,17 +425,17 @@ footer { color: var(--muted); padding: 2rem; text-align: center; }
 }
 
 .financial-note,
-.declaration-fiscal-snapshot { background: #f0f6f1; }
-.snapshot-coverage { background: var(--color-brand-soft); border: 1px solid #ead4dc; }
+.declaration-fiscal-snapshot { background: var(--color-surface-success); }
+.snapshot-coverage { background: var(--color-brand-soft); border: 1px solid var(--color-brand-soft-border); }
 .fiscal-warnings,
 .declaration-warning,
 .calculation-message-vat-unmodeled,
-.calculation-message-refund-review-required { background: var(--color-warning-soft); border-color: #ead4b4; color: var(--color-warning); }
+.calculation-message-refund-review-required { background: var(--color-warning-soft); border-color: var(--color-warning-border); color: var(--color-warning); }
 .fiscal-warnings span,
 .declaration-warning,
 .calculation-message-vat-unmodeled,
 .calculation-message-refund-review-required { color: var(--color-warning); }
-.dashboard-error { background: var(--color-danger-soft); border-color: #ecc9cd; color: var(--color-danger); }
+.dashboard-error { background: var(--color-danger-soft); border-color: var(--color-danger-border); color: var(--color-danger); }
 
 .document-icon,
 .register-home-card > span {
@@ -449,15 +458,15 @@ footer { color: var(--muted); padding: 2rem; text-align: center; }
 .register-table th { background: var(--color-surface-muted); color: var(--color-text-secondary); font-size: .72rem; }
 .register-table td { font-size: .83rem; }
 .register-table tbody tr { transition: background .15s ease; }
-.register-table tbody tr:hover { background: #fdf8fa; }
-.register-table .cash-row { background: #fff9f1; }
+.register-table tbody tr:hover { background: var(--color-surface-hover); }
+.register-table .cash-row { background: var(--color-surface-cash); }
 
 .text-button,
 .back-link,
 .card-link,
 .revision-history summary { color: var(--color-brand-hover); font-size: .84rem; text-underline-offset: 3px; }
 .danger-button { background: var(--color-danger); border-color: var(--color-danger); }
-.danger-button:hover { background: #843740; border-color: #843740; }
+.danger-button:hover { background: var(--color-danger-hover); border-color: var(--color-danger-hover); }
 .checkbox-field { font-size: .84rem; }
 .checkbox-field input { accent-color: var(--color-brand); }
 
