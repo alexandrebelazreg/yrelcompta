@@ -1,6 +1,7 @@
 import type { DeclarationPeriod, VatRegime } from "@/types/database";
 import type { ExpensePaymentMethod, ExpenseRefundKind } from "@/types/expenses";
 import type { PaymentMethod, RefundKind, SaleChannel } from "@/types/sales";
+import type { FiscalEvaluationStatus } from "@/types/fiscal-social";
 
 export type DeclarationCalculationStatus = "available" | "vat-unmodeled" | "refund-review-required";
 export type DeclarationUiStatus = "upcoming" | "to-declare" | "overdue" | "declared";
@@ -79,6 +80,19 @@ export interface TurnoverDeclaration {
   externalReference: string | null;
   adjustmentReason: string | null;
   createdAt: string;
+  fiscalEvaluated: boolean;
+  fiscalEvaluationStatus: FiscalEvaluationStatus;
+  fiscalProfileId: string | null;
+  fiscalRuleVersionId: string | null;
+  acreRuleVersionId: string | null;
+  socialRateBasisPointsSnapshot: number | null;
+  cfpRateBasisPointsSnapshot: number | null;
+  versementLiberatoireBasisPointsSnapshot: number | null;
+  acreAppliedSnapshot: boolean | null;
+  estimatedSocialContributionsCents: number | null;
+  estimatedCfpCents: number | null;
+  estimatedIncomeTaxCents: number | null;
+  estimatedTotalReserveCents: number | null;
 }
 
 export interface DeclarationPeriodItem {

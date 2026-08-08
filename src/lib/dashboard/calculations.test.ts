@@ -34,6 +34,8 @@ const source = (overrides: Partial<DashboardSourceData> = {}): DashboardSourceDa
   recurringTemplates: [],
   missingDocuments: [],
   recentSales: [],
+  fiscalCalculationDate: "2026-08-31",
+  fiscalContext: { activityStartedOn: null, vatRegime: "franchise", profile: null, rule: null, acreRule: null },
   ...overrides,
 });
 

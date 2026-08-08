@@ -21,6 +21,7 @@ describe("migration registres et déclarations", () => {
     expect(migrations.filter((name) => name > "20260807010000_sales_product_snapshots.sql")).toEqual([
       migrationName,
       "20260807220000_invoicing_documents.sql",
+      "20260808120000_fiscal_social_rules.sql",
     ]);
   });
 

@@ -4,7 +4,7 @@ YrelCompta est une application web française de gestion simplifiée pour une mi
 
 > La gestion simple de votre micro-entreprise de bijoux.
 
-L’application fournit l’authentification, la création de l’entreprise et une première version du suivi des ventes, encaissements et remboursements. Elle ne réalise aucun calcul fiscal ou social.
+L’application fournit l’authentification, la création de l’entreprise et le suivi des ventes, encaissements, remboursements et déclarations enregistrées. Elle produit aussi une estimation interne de réserve fiscale et sociale à partir de règles légales versionnées ; cette estimation n’est ni une déclaration, ni un appel officiel de cotisations.
 
 ## Stack technique
 
@@ -52,7 +52,7 @@ supabase link --project-ref VOTRE_REFERENCE
 supabase db push
 ```
 
-La migration initiale crée `profiles`, `businesses`, `business_members`, `business_settings` et `audit_logs`. La migration `20260805010000_sales_payments.sql` ajoute les ventes, lignes, encaissements et remboursements. La migration `20260805180000_expenses_documents.sql` ajoute les dépenses, fournisseurs, paiements, remboursements fournisseurs, justificatifs privés et modèles récurrents. La migration `20260807120000_registers_declarations.sql` prépare la date légale de début d’activité et l’historique immuable des déclarations. La migration `20260807220000_invoicing_documents.sql` prépare la facturation commerciale, les avoirs et leurs compteurs transactionnels ; ces migrations doivent être relues avant toute application.
+La migration initiale crée `profiles`, `businesses`, `business_members`, `business_settings` et `audit_logs`. La migration `20260805010000_sales_payments.sql` ajoute les ventes, lignes, encaissements et remboursements. La migration `20260805180000_expenses_documents.sql` ajoute les dépenses, fournisseurs, paiements, remboursements fournisseurs, justificatifs privés et modèles récurrents. La migration `20260807120000_registers_declarations.sql` prépare la date légale de début d’activité et l’historique immuable des déclarations. La migration `20260807220000_invoicing_documents.sql` prépare la facturation commerciale, les avoirs et leurs compteurs transactionnels. La migration `20260808120000_fiscal_social_rules.sql` ajoute les règles fiscales/sociales globales versionnées, les profils d’entreprise append-only et les snapshots d’estimation des nouvelles déclarations ; ces migrations doivent être relues avant toute application.
 
 Avant d’appliquer une nouvelle migration sur un projet lié, inspectez toujours le plan :
 
@@ -222,7 +222,9 @@ Le taux de marge de référence est pondéré par le chiffre d’affaires marcha
 
 `ceil(charges fixes annuelles × CA marchandises de référence / (12 × marge de fabrication de référence))`
 
-Il représente le chiffre d’affaires marchandises nécessaire pour que la marge de fabrication couvre les charges fixes récurrentes estimées. Il ne constitue pas un résultat fiscal complet et exclut volontairement cotisations sociales, TVA, impôt et coûts commerciaux absents de la marge produit. Aucune valeur fiscale ou sociale n’est codée en dur.
+Il représente le chiffre d’affaires marchandises nécessaire pour que la marge de fabrication couvre les charges fixes récurrentes estimées. Il ne constitue pas un résultat fiscal complet et exclut volontairement cotisations sociales, TVA, impôt et coûts commerciaux absents de la marge produit. La réserve fiscale/sociale est présentée dans une section distincte et ne modifie jamais ce seuil.
+
+La **réserve fiscale et sociale estimée** utilise le chiffre d’affaires brut encaissé du mois lorsqu’il n’existe aucun remboursement client et que l’entreprise est en franchise de TVA. Elle additionne les cotisations micro-sociales, la CFP et, seulement si l’option du profil est active, le versement libératoire. Le **flux net suivi après réserve estimée** est le flux net suivi déjà calculé moins cette réserve : il ne s’agit ni d’un bénéfice net, ni du montant réellement appelé par l’Urssaf. En présence d’un remboursement, d’une TVA non ventilée, d’un profil absent, d’une règle légale indisponible ou d’une ACRE active, aucun montant partiel n’est affiché.
 
 Une vente récente au coût incomplet ou une vente historique sans snapshot est comptée dans la couverture, mais jamais intégrée silencieusement à la marge. L’écart entre marge mensuelle et charges fixes n’est affiché que si toutes les ventes validées du mois ont un coût historique complet. De même, le seuil est **indisponible** sans charges fixes configurées, sans vente complète de référence, ou avec un revenu ou une marge de référence non positifs. « Indisponible » signifie que les données ne permettent pas le calcul ; `0 €` reste réservé à un résultat réellement calculé égal à zéro.
 
@@ -259,7 +261,7 @@ Une période sans encaissement possède une proposition valide de `0 €`. En fr
 
 Le **montant déclaré** reste celui saisi par l’utilisatrice. Lorsqu’il diffère de la proposition, ou lorsque la proposition est indisponible, un motif est obligatoire. Une première déclaration crée la révision 1. Une correction ne modifie jamais cette ligne : elle ajoute une nouvelle révision liée à la précédente, avec un motif obligatoire. Le cumul annuel déclaré utilise uniquement la dernière révision de chaque période, tout en conservant l’historique complet.
 
-« Déclarée » signifie uniquement qu’une révision a été enregistrée dans YrelCompta. L’application n’envoie rien à l’Urssaf : la transmission réelle reste à effectuer sur le service officiel. Elle ne calcule ni cotisations sociales, ni TVA, ni impôt, ni versement libératoire, ni pénalité, ni case de déclaration annuelle. Elle ne traite pas encore les avoirs clients ou la TVA au niveau des factures et ne constitue pas un logiciel comptable certifié.
+« Déclarée » signifie uniquement qu’une révision a été enregistrée dans YrelCompta. L’application n’envoie rien à l’Urssaf : la transmission réelle reste à effectuer sur le service officiel. Pour une nouvelle révision disposant d’un profil et de règles applicables sur toute sa période, le montant déclaré sert à figer une estimation interne des cotisations, de la CFP et du versement libératoire éventuel. Une période traversant une nouvelle règle ou configuration reste non évaluée afin de ne jamais appliquer le taux du dernier jour à tout son chiffre d’affaires. Une ancienne déclaration non évaluée n’est jamais recalculée avec les taux courants. YrelCompta ne calcule ni TVA, ni impôt au barème progressif, ni pénalité, ni case de déclaration annuelle et ne constitue pas un logiciel comptable certifié.
 
 ### Parcours manuel de test des registres et déclarations
 
@@ -301,8 +303,39 @@ Le PDF généré par YrelCompta est un document commercial ; il n’est pas, à 
 6. Vérifiez les factures et avoirs dans `/documents`, sans URL Storage signée.
 7. Utilisez une longue vente pour contrôler les en-têtes, pieds de page et numéros de pages du PDF multipage.
 
+## Paramètres fiscaux et sociaux versionnés
+
+La V1 couvre uniquement une micro-entreprise en France métropolitaine relevant du micro-BIC pour la vente de marchandises ou d’objets, adaptée à l’activité de bijoux YrelCompta. Les taux, fractions ACRE, plafonds micro et seuils de franchise de TVA sont stockés dans des tables globales immuables. Une nouvelle évolution légale ajoute une version datée par migration ; elle ne remplace jamais une ancienne ligne. Pour chaque date, YrelCompta résout la dernière version entrée en vigueur.
+
+Les choix propres à l’entreprise sont séparés de ces règles. Chaque version du profil indique la catégorie CFP commerciale ou artisanale, l’ACRE déclarée et l’option de versement libératoire. La première version prend effet à la date légale de début d’activité. Les suivantes sont ajoutées sans modification de l’historique, au 1er janvier, et ne peuvent pas réécrire une période déjà enregistrée. L’ancien champ ACRE des paramètres initiaux n’est qu’une aide au préremplissage de la première version ; le profil versionné devient ensuite la source des estimations.
+
+Les notions restent volontairement distinctes :
+
+- le **CA encaissé** est constitué des encaissements bruts réellement datés ;
+- le **CA déclaré** est le montant que l’utilisatrice indique avoir effectivement déclaré, sans transmission par YrelCompta ;
+- la **réserve estimée** est une prévision interne de trésorerie calculée par arithmétique entière à partir du CA et des versions applicables ;
+- la **cotisation réellement appelée** reste le montant communiqué par l’Urssaf et peut différer de l’estimation ;
+- le **versement libératoire** est ajouté uniquement lorsque l’option est activée dans le profil ; sans cette option, aucun impôt sur le revenu n’est estimé ;
+- la **TVA** n’est ni ventilée ni calculée par cette version ;
+- la **marge de fabrication** et le **flux net suivi** sont des indicateurs distincts, qui ne constituent pas un bénéfice fiscal.
+
+Les paramètres affichent le taux ACRE **théorique** et sa date de fin à titre de référence. La réserve monétaire reste toutefois indisponible pendant toute période ACRE active : le plafond légal d’exonération, sa proratisation éventuelle, le chiffre d’affaires cumulé qui le consomme et le franchissement en cours de période ne sont pas encore modélisés. YrelCompta refuse donc de sous-estimer les cotisations en appliquant 6,20 % ou 9,30 % à tout le chiffre d’affaires. Après la fin de l’ACRE, le taux social normal redevient calculable. La CFP et le versement libératoire ne sont jamais réduits.
+
+Chaque nouvelle déclaration ou correction fige ses identifiants de versions, taux et montants uniquement lorsqu’une estimation complète est possible. Pendant l’ACRE, lorsqu’une période traverse une frontière de règle/configuration, ou lorsqu’un profil/règle manque, elle reste enregistrable mais conserve un statut d’indisponibilité et des snapshots monétaires entièrement nuls. Les enregistrements antérieurs à cette fonctionnalité restent explicitement « non évalués historiquement ».
+
+Cette V1 exclut les prestations de services, le BNC, la Cipav, les DROM, l’international, la CFE, l’impôt au barème progressif, la proratisation avancée des seuils, le calcul ou la déclaration de TVA, les alertes automatiques de dépassement et tout changement automatique de régime. Aucun paiement ni aucune déclaration n’est transmis à l’Urssaf ou aux impôts.
+
+### Parcours manuel de test fiscal et social
+
+1. Renseignez la date de début d’activité puis ouvrez `/parametres/fiscalite` et créez la première version à cette date.
+2. Vérifiez les taux et seuils légaux en lecture seule, puis les deux catégories de CFP, l’ACRE et le versement libératoire.
+3. Ouvrez un mois sans remboursement sur le tableau de bord et contrôlez la réserve ainsi que le flux suivi après réserve.
+4. Ajoutez un remboursement client, puis testez un régime TVA `liable` : aucun montant fiscal partiel ne doit être présenté.
+5. Enregistrez une déclaration puis une correction ; contrôlez que chacune conserve son propre snapshot et que l’ancienne révision reste inchangée.
+6. Créez une version future au 1er janvier et vérifiez l’historique. Une date rétroactive touchant une déclaration existante doit être refusée.
+
 ## Limites de cette version
 
-Le module ne propose ni OCR, rapprochement ou connexion bancaire, stock, lots d’achat, valorisation FIFO/CUMP, décrémentation à la vente, amortissements, TVA récupérable, calcul URSSAF, images ou variantes produit, génération planifiée des récurrences ou comptabilité certifiée. Il ne transmet aucune déclaration. Les registres, indicateurs et calendriers sont uniquement des outils de préparation et de suivi ; aucun taux fiscal, social ou de TVA n’est calculé.
+Le module ne propose ni OCR, rapprochement ou connexion bancaire, stock, lots d’achat, valorisation FIFO/CUMP, décrémentation à la vente, amortissements, TVA récupérable, calcul officiel URSSAF, images ou variantes produit, génération planifiée des récurrences ou comptabilité certifiée. Il ne transmet aucune déclaration. Les registres, indicateurs, estimations et calendriers sont uniquement des outils de préparation et de suivi ; aucun taux de TVA n’est calculé.
 
 Les futures écritures comptables validées devront être rendues inaltérables par une conception dédiée ; `audit_logs` ne constitue pas encore ce registre.

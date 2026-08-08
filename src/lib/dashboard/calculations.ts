@@ -8,6 +8,7 @@ import type {
   FixedCostCoverageUnavailableReason,
 } from "@/types/dashboard";
 import { calculateProfessionalAmount } from "../expenses/calculations";
+import { calculateDashboardFiscalReserve } from "../fiscal-social/calculations";
 
 const SAFE_RANGE_ERROR = "DASHBOARD_MONETARY_VALUE_OUT_OF_SAFE_RANGE";
 const EXCLUDED_FIXED_CATEGORIES = new Set(["raw_materials", "packaging", "taxes_social"]);
@@ -148,6 +149,13 @@ export function calculateDashboardMetrics(source: DashboardSourceData): Dashboar
   const revenueCollected = grossCollected - customerRefunded;
   const netExpenses = expensesPaid - expenseRefunded;
   const trackedCash = revenueCollected - platformFees - netExpenses;
+  const fiscalReserve = calculateDashboardFiscalReserve({
+    grossCollectedCents: safeNumber(grossCollected),
+    customerRefundCount: source.customerRefunds.length,
+    trackedCashCents: safeNumber(trackedCash),
+    calculationDate: source.fiscalCalculationDate,
+    context: source.fiscalContext,
+  });
 
   const validatedMonthlySales = source.monthlySales.filter((sale) => sale.status === "validated");
   const validatedReferenceSales = source.referenceSales.filter((sale) => sale.status === "validated");
@@ -219,5 +227,6 @@ export function calculateDashboardMetrics(source: DashboardSourceData): Dashboar
       unavailableReason: fixedCostCoverageReason,
     },
     missingDocumentCount: source.missingDocuments.filter((expense) => expense.documentCount === 0).length,
+    fiscalReserve,
   };
 }
