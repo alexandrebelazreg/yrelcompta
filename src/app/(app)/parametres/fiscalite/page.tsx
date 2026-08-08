@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InfoTip } from "@/components/ui/info-tip";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { getAuthenticatedContext } from "@/lib/auth/context";
 import { calculateAcreEndDate, roundRateUpToIncrement } from "@/lib/fiscal-social/calculations";
@@ -31,14 +32,14 @@ export default async function FiscalSettingsPage({ searchParams }: { searchParam
 
   return <>
     <Link className="back-link" href="/parametres">← Paramètres</Link>
-    <header className="page-header"><div><p className="eyebrow">Versions historiques</p><h1>Paramètres fiscaux et sociaux</h1><p>Configurez les choix de l’entreprise sans saisir ni dupliquer les taux légaux.</p></div></header>
+    <header className="page-header"><div className="info-line"><h1>Paramètres fiscaux et sociaux</h1><InfoTip label="À propos des paramètres fiscaux et sociaux">Configurez les choix de l’entreprise sans saisir ni dupliquer les taux légaux.</InfoTip></div></header>
     {message && <p className="form-message success" role="status">{message}</p>}{error && <p className="form-message" role="alert">{error}</p>}
     <div className="fiscal-warnings">
       <strong>Estimation interne de trésorerie.</strong> YrelCompta ne transmet aucune déclaration.
       <span>Hors CFE · Hors impôt sur le revenu au barème progressif · TVA non calculée dans cette version.</span>
     </div>
 
-    <section className="card fiscal-settings-section"><p className="eyebrow">Configuration active</p><h2>Version fiscale de l’entreprise</h2>
+    <section className="card fiscal-settings-section"><h2>Version fiscale de l’entreprise</h2>
       {active ? <dl className="detail-list">
         <div><dt>Date d’effet</dt><dd>{formatFrenchDate(active.effectiveFrom)}</dd></div>
         <div><dt>CFP</dt><dd>{active.cfpCategory === "commercial" ? "Activité commerciale" : "Activité artisanale"}</dd></div>
@@ -47,7 +48,7 @@ export default async function FiscalSettingsPage({ searchParams }: { searchParam
       </dl> : <p>Aucune version fiscale n’est encore configurée.</p>}
     </section>
 
-    <section className="card fiscal-settings-section"><p className="eyebrow">Références légales résolues</p><h2>Règle applicable aujourd’hui</h2>
+    <section className="card fiscal-settings-section"><div className="info-line"><h2>Règle applicable aujourd’hui</h2><InfoTip label="À propos des plafonds affichés">Ces plafonds sont informatifs. Cette version ne prorate pas les seuils et n’automatise aucun changement de régime micro ou de TVA.</InfoTip></div>
       {rule ? <><dl className="detail-list">
         <div><dt>Cotisations micro-sociales normales</dt><dd>{formatBasisPoints(rule.socialContributionBasisPoints)}</dd></div>
         <div><dt>CFP applicable au profil</dt><dd>{active ? formatBasisPoints(active.cfpCategory === "commercial" ? rule.cfpCommercialBasisPoints : rule.cfpArtisanBasisPoints) : "Profil requis"}</dd></div>
@@ -59,10 +60,9 @@ export default async function FiscalSettingsPage({ searchParams }: { searchParam
         <div><dt>Source contrôlée</dt><dd>{rule.sourceLabel} · {formatFrenchDate(rule.sourceCheckedOn)}</dd></div>
       </dl>
       {active?.hasAcre && <><p className="dashboard-note">ACRE : {data.activeAcreRule ? `${formatBasisPoints(data.activeAcreRule.paidFractionBasisPoints)} du taux normal, soit un taux théorique de ${theoreticalAcreRate === null ? "indisponible" : formatBasisPoints(theoreticalAcreRate)}, arrondi par pas de ${formatBasisPoints(data.activeAcreRule.rateRoundingIncrementBasisPoints)}. Fin théorique : ${acreEnd ? formatFrenchDate(acreEnd) : "indisponible"}.` : "règle non disponible"}</p><p className="declaration-warning">Le taux ACRE est affiché à titre de référence. La réserve monétaire pendant l’ACRE reste indisponible tant que son plafond légal n’est pas modélisé.</p></>}</> : <p>Règle non disponible pour la date courante.</p>}
-      <p className="dashboard-note">Ces plafonds sont informatifs. Cette version ne prorate pas les seuils et n’automatise aucun changement de régime micro ou de TVA.</p>
     </section>
 
-    <section className="card fiscal-settings-section"><p className="eyebrow">Append-only</p><h2>{latest ? "Créer une version suivante" : "Créer la première version"}</h2>
+    <section className="card fiscal-settings-section"><div className="info-line"><h2>{latest ? "Créer une version suivante" : "Créer la première version"}</h2><InfoTip label="À propos du versionnement fiscal">Chaque nouvelle configuration s’ajoute à l’historique sans modifier les versions déjà utilisées.</InfoTip></div>
       {!data.activityStartedOn ? <p>Renseignez d’abord la date légale de début d’activité dans <Link href="/registres/declarations">Déclarations</Link>.</p>
         : !data.isOwner ? <p>Seul le propriétaire de l’entreprise peut créer une version fiscale.</p>
         : effectiveFrom && <form action={createFiscalProfileAction} className="form-stack">
@@ -76,7 +76,7 @@ export default async function FiscalSettingsPage({ searchParams }: { searchParam
         </form>}
     </section>
 
-    <section className="fiscal-history"><div className="section-heading"><div><p className="eyebrow">Traçabilité</p><h2>Historique des versions</h2></div></div>
+    <section className="fiscal-history"><div className="section-heading"><h2>Historique des versions</h2></div>
       {data.profiles.length === 0 ? <p className="history-empty">Aucune version enregistrée.</p> : <ol>{data.profiles.toReversed().map((profile) => <li className="card" key={profile.id}><strong>À compter du {formatFrenchDate(profile.effectiveFrom)}</strong><span>CFP {profile.cfpCategory === "commercial" ? "commerciale" : "artisanale"} · ACRE {profile.hasAcre ? "oui" : "non"} · Versement libératoire {profile.versementLiberatoire ? "oui" : "non"}</span></li>)}</ol>}
     </section>
   </>;

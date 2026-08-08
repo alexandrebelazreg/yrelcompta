@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InfoTip } from "@/components/ui/info-tip";
 
 const registers = [
   { href: "/registres/recettes", title: "Livre des recettes", description: "Encaissements bruts chronologiques, règlements en espèces et totaux trimestriels." },
@@ -8,7 +9,7 @@ const registers = [
 
 export default function RegistersPage() {
   return <>
-    <header className="page-header"><div><p className="eyebrow">Suivi réglementaire</p><h1>Registres et déclarations</h1><p>Préparez vos registres et tracez ce que vous avez déclaré, sans transmission automatique.</p></div></header>
+    <header className="page-header"><div className="info-line"><h1>Registres et déclarations</h1><InfoTip label="À propos des registres et déclarations">Préparez vos registres et tracez ce que vous avez déclaré, sans transmission automatique.</InfoTip></div></header>
     <section className="register-home-grid">
       {registers.map((register) => <Link className="card register-home-card" href={register.href} key={register.href}><span aria-hidden="true">▦</span><h2>{register.title}</h2><p>{register.description}</p><strong>Ouvrir →</strong></Link>)}
     </section>
