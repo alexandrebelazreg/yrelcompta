@@ -8,6 +8,9 @@ const shell = readFileSync(join(root, "src/components/layout/app-shell.tsx"), "u
 const navigation = readFileSync(join(root, "src/components/layout/navigation.tsx"), "utf8");
 const dashboard = readFileSync(join(root, "src/app/(app)/tableau-de-bord/page.tsx"), "utf8");
 const sales = readFileSync(join(root, "src/app/(app)/ventes/page.tsx"), "utf8");
+const expenses = readFileSync(join(root, "src/app/(app)/depenses/page.tsx"), "utf8");
+const products = readFileSync(join(root, "src/app/(app)/produits/page.tsx"), "utf8");
+const documents = readFileSync(join(root, "src/app/(app)/documents/page.tsx"), "utf8");
 
 describe("identité visuelle Poudré chic", () => {
   it("déclare la palette sémantique et les dimensions communes", () => {
@@ -57,5 +60,36 @@ describe("identité visuelle Poudré chic", () => {
     expect(sales).toContain('className="register-table sales-table"');
     expect(sales).toContain('className="sale-mobile-context"');
     expect(sales).not.toContain('className="sale-card"');
+  });
+
+  it("présente les dépenses sous forme de lignes compactes", () => {
+    expect(expenses).toContain('className="register-table compact-table expense-table"');
+    for (const heading of ["Référence", "Fournisseur", "Description", "Montant", "Payé", "Remboursé", "Reste", "Justificatifs"]) {
+      expect(expenses).toContain(`<th>${heading}</th>`);
+    }
+    expect(expenses).toContain('href={`/depenses/${expense.id}`}');
+    expect(expenses).not.toContain('className="sale-card"');
+  });
+
+  it("présente les produits sous forme de lignes comparables", () => {
+    expect(products).toContain('className="register-table compact-table product-table"');
+    for (const heading of ["Produit", "SKU", "Catégorie", "État", "Prix de vente", "Coût de fabrication", "Marge estimée"]) {
+      expect(products).toContain(`<th>${heading}</th>`);
+    }
+    expect(products).toContain('href={`/produits/${product.id}`}');
+    expect(products).toContain('product-status-${product.is_active ? "active" : "archived"}');
+    expect(products).not.toContain('className="product-grid"');
+  });
+
+  it("sépare les documents en tableaux compacts sans perdre leurs actions", () => {
+    expect(documents).toContain('className="register-table compact-table billing-document-table"');
+    expect(documents).toContain('className="register-table compact-table supplier-document-table"');
+    expect(documents).toContain('className="register-table compact-table missing-document-table"');
+    for (const heading of ["Numéro", "Cliente", "Vente", "Total", "Fichier", "Dépense", "Fournisseur", "Taille", "Action"]) {
+      expect(documents).toContain(`<th>${heading}</th>`);
+    }
+    expect(documents).toContain('href={`/factures/${document.id}`}');
+    expect(documents).toContain('href={`/depenses/${document.expenseId}`}');
+    expect(documents).not.toContain('className="document-grid"');
   });
 });

@@ -562,8 +562,111 @@ footer { color: var(--muted); padding: 2rem; text-align: center; }
 .sales-table-wrap .info-tip-panel,
 .metric-grid .card .info-tip-panel { left: auto; right: 0; }
 
+.compact-table-wrap { margin-top: .65rem; }
+.compact-table { min-width: 760px; }
+.compact-table th,
+.compact-table td { white-space: nowrap; }
+.compact-table th { font-size: 11.5px; }
+.compact-table td { font-size: 12.5px; padding-block: .55rem; vertical-align: middle; }
+.compact-table .compact-primary-link { color: var(--color-brand-hover); font-weight: 720; }
+.compact-table .compact-primary-link:hover,
+.compact-table .table-action-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.compact-table .compact-description { max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+.compact-table .compact-amount { font-variant-numeric: tabular-nums; font-weight: 620; text-align: right; }
+.compact-table .compact-actions { align-items: center; display: flex; gap: .7rem; }
+.compact-table .table-action-link { color: var(--color-brand-hover); font-size: 12px; font-weight: 680; }
+.compact-count,
+.file-kind-badge,
+.product-status { border-radius: 99px; display: inline-flex; font-size: 11.5px; font-weight: 680; line-height: 1; padding: .28rem .5rem; }
+.compact-count { background: var(--color-sage); color: var(--color-sage-strong); min-width: 1.6rem; justify-content: center; }
+.compact-count-empty { background: var(--color-peach); color: var(--color-peach-strong); }
+.file-kind-badge { background: var(--color-lavender); color: var(--color-lavender-strong); margin-right: .4rem; }
+.product-status-active { background: var(--color-sage); color: var(--color-sage-strong); }
+.product-status-archived { background: var(--color-lavender); color: var(--color-lavender-strong); }
+.expense-table { min-width: 1100px; }
+.expense-table th,
+.expense-table td { padding-inline: .55rem; }
+.expense-table .expense-description { max-width: 220px; }
+.product-table { min-width: 800px; }
+.billing-document-table { min-width: 900px; }
+.billing-document-table .billing-document-customer { max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
+.supplier-document-table { min-width: 1080px; }
+.supplier-document-table .supplier-document-main { max-width: 250px; }
+.compact-filename { display: inline-block; max-width: 190px; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+.compact-mobile-context,
+.compact-mobile-financials { display: none; }
+.document-section + .document-section { margin-top: 1.5rem; }
+.missing-documents .compact-table-wrap { margin-top: .7rem; }
+.missing-documents .compact-table a { border-top: 0; display: inline; padding: 0; }
+.missing-document-table { min-width: 620px; }
+
+@media (max-width: 768px) {
+  .compact-table-wrap { border: 0; overflow: visible; }
+  .compact-table { background: transparent; display: block; min-width: 0; }
+  .compact-table thead { display: none; }
+  .compact-table tbody { display: grid; gap: .55rem; }
+  .compact-table tr { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 11px; display: grid; gap: .18rem .6rem; grid-template-columns: minmax(0, 1fr) auto; padding: .65rem .75rem; }
+  .compact-table td { border: 0; display: none; font-size: 12.5px; min-width: 0; padding: 0; white-space: normal; }
+  .compact-table .compact-mobile-context { color: var(--color-text-secondary); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .compact-table .compact-mobile-financials { color: var(--color-text-secondary); display: block; }
+
+  .expense-table .expense-main,
+  .expense-table .expense-total,
+  .expense-table .expense-status-cell,
+  .expense-table .expense-mobile-context,
+  .expense-table .expense-mobile-financials { display: block; }
+  .expense-table .expense-main { grid-column: 1; grid-row: 1; }
+  .expense-table .expense-total { grid-column: 2; grid-row: 1; }
+  .expense-table .expense-total::before { color: var(--color-text-muted); content: "Montant "; font-size: 11px; font-weight: 500; }
+  .expense-table .expense-mobile-context { grid-column: 1; grid-row: 2; }
+  .expense-table .expense-status-cell { grid-column: 2; grid-row: 2; justify-self: end; }
+  .expense-table .expense-mobile-financials { grid-column: 1 / -1; grid-row: 3; }
+  .expense-table .expense-mobile-financials { font-size: 11.5px; letter-spacing: -.01em; white-space: nowrap; }
+
+  .product-table .product-main,
+  .product-table .product-price,
+  .product-table .product-status-cell,
+  .product-table .product-mobile-context,
+  .product-table .product-mobile-financials { display: block; }
+  .product-table .product-main { grid-column: 1; grid-row: 1; }
+  .product-table .product-price { grid-column: 2; grid-row: 1; }
+  .product-table .product-mobile-context { grid-column: 1; grid-row: 2; }
+  .product-table .product-status-cell { grid-column: 2; grid-row: 2; justify-self: end; }
+  .product-table .product-mobile-financials { grid-column: 1 / -1; grid-row: 3; }
+
+  .billing-document-table .billing-document-main,
+  .billing-document-table .billing-document-total,
+  .billing-document-table .billing-document-actions,
+  .billing-document-table .billing-document-mobile-context { display: block; }
+  .billing-document-table .billing-document-main { grid-column: 1; grid-row: 1; }
+  .billing-document-table .billing-document-total { grid-column: 2; grid-row: 1; }
+  .billing-document-table .billing-document-mobile-context { grid-column: 1 / -1; grid-row: 2; }
+  .billing-document-table .billing-document-actions { display: flex; grid-column: 1 / -1; grid-row: 3; }
+
+  .supplier-document-table .supplier-document-main,
+  .supplier-document-table .supplier-document-action,
+  .supplier-document-table .supplier-document-mobile-context,
+  .supplier-document-table .supplier-document-mobile-meta { display: block; }
+  .supplier-document-table .supplier-document-main { display: flex; grid-column: 1; grid-row: 1; overflow: hidden; }
+  .supplier-document-table .supplier-document-action { grid-column: 2; grid-row: 1; }
+  .supplier-document-table .supplier-document-mobile-context { grid-column: 1 / -1; grid-row: 2; }
+  .supplier-document-table .supplier-document-mobile-meta { grid-column: 1 / -1; grid-row: 3; }
+  .supplier-document-table .compact-filename { max-width: none; }
+
+  .missing-document-table .missing-document-main,
+  .missing-document-table .missing-document-description,
+  .missing-document-table .missing-document-action { display: block; }
+  .missing-document-table .missing-document-main { grid-column: 1; grid-row: 1; }
+  .missing-document-table .missing-document-action { grid-column: 2; grid-row: 1; }
+  .missing-document-table .missing-document-description { grid-column: 1 / -1; grid-row: 2; max-width: none; }
+}
+
 @media (max-width: 700px) {
   .app-shell .page-header h1 { font-size: 1.45rem; }
+  .expense-summary { gap: .55rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .expense-summary .card { padding: .65rem .75rem; }
+  .expense-summary .card p { font-size: 12px; margin-bottom: .2rem; min-height: 0; }
+  .expense-summary .card strong { font-size: 1.08rem; }
   .dashboard-section { margin-top: 1.15rem; }
   .dashboard-section .metric-grid { gap: .55rem; }
   .metric-card { padding: .7rem .8rem; }
