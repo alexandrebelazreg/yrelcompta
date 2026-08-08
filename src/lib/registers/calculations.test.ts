@@ -37,6 +37,7 @@ function declaration(revisionNo: number, declaredTurnoverCents: number, periodSt
     adjustmentReason: revisionNo === 1 ? null : "Correction",
     createdAt: "2026-02-10T12:00:00Z",
     fiscalEvaluated: false,
+    fiscalEvaluationStatus: "not-evaluated-historically",
     fiscalProfileId: null,
     fiscalRuleVersionId: null,
     acreRuleVersionId: null,

@@ -33,7 +33,16 @@ function DeclarationForm({ period, year, revision, today }: { period: Declaratio
 }
 
 function FiscalSnapshot({ declaration, compact = false }: { declaration: TurnoverDeclaration; compact?: boolean }) {
-  if (!declaration.fiscalEvaluated) return <p className="fiscal-snapshot-unavailable">Estimation fiscale non évaluée historiquement.</p>;
+  if (!declaration.fiscalEvaluated) {
+    const unavailableMessage = declaration.fiscalEvaluationStatus === "acre-cap-unmodeled"
+      ? "Estimation indisponible pendant l’ACRE : le plafond légal d’exonération n’est pas encore modélisé."
+      : declaration.fiscalEvaluationStatus === "mixed-fiscal-version-period"
+        ? "Estimation fiscale indisponible : cette période traverse un changement de règle ou de configuration."
+        : declaration.fiscalEvaluationStatus === "profile-or-rule-unavailable"
+          ? "Estimation fiscale indisponible : aucun profil ou aucune règle applicable n’était disponible."
+          : "Estimation fiscale non évaluée historiquement.";
+    return <p className="fiscal-snapshot-unavailable">{unavailableMessage}</p>;
+  }
   const social = declaration.estimatedSocialContributionsCents;
   const cfp = declaration.estimatedCfpCents;
   const incomeTax = declaration.estimatedIncomeTaxCents;

@@ -42,15 +42,17 @@ describe("calcul fiscal et social entier", () => {
     expect(calculateFiscalReserve(100_000, "2026-08-31", "2026-01-01", profile({ versementLiberatoire: true }), rule, null).estimatedIncomeTaxCents).toBe(1_000);
   });
 
-  it("arrondit l’ancienne ACRE au dixième supérieur, soit 6,20 %", () => {
-    const result = calculateFiscalReserve(100_000, "2026-12-31", "2026-06-30", profile({ hasAcre: true }), rule, oldAcre);
-    expect(result).toMatchObject({ socialRateBasisPoints: 620, acreApplied: true, estimatedSocialContributionsCents: 6_200 });
+  it("calcule l’ancien taux ACRE théorique au dixième supérieur, soit 6,20 %", () => {
+    expect(roundRateUpToIncrement(rule.socialContributionBasisPoints, oldAcre.paidFractionBasisPoints, oldAcre.rateRoundingIncrementBasisPoints)).toBe(620);
   });
 
-  it("arrondit la nouvelle ACRE au dixième supérieur, soit 9,30 %", () => {
-    const result = calculateFiscalReserve(100_000, "2026-12-31", "2026-07-01", profile({ hasAcre: true }), rule, newAcre);
-    expect(result).toMatchObject({ socialRateBasisPoints: 930, acreApplied: true, estimatedSocialContributionsCents: 9_300 });
+  it("calcule le nouveau taux ACRE théorique au dixième supérieur, soit 9,30 %", () => {
     expect(roundRateUpToIncrement(1230, 7500, 10)).toBe(930);
+  });
+
+  it("refuse toute estimation monétaire complète pendant l’ACRE active", () => {
+    expect(() => calculateFiscalReserve(100_000, "2026-12-31", "2026-07-01", profile({ hasAcre: true }), rule, newAcre))
+      .toThrow("FISCAL_ACRE_CAP_UNMODELED");
   });
 
   it.each([
@@ -66,8 +68,8 @@ describe("calcul fiscal et social entier", () => {
     expect(result).toMatchObject({ socialRateBasisPoints: 1230, acreApplied: false });
   });
 
-  it("ne réduit jamais la CFP ni le versement libératoire avec l’ACRE", () => {
-    const result = calculateFiscalReserve(100_000, "2026-12-31", "2026-07-01", profile({ hasAcre: true, cfpCategory: "artisan", versementLiberatoire: true }), rule, newAcre);
+  it("conserve la CFP et le versement libératoire sans ACRE", () => {
+    const result = calculateFiscalReserve(100_000, "2026-12-31", "2026-07-01", profile({ cfpCategory: "artisan", versementLiberatoire: true }), rule, null);
     expect(result).toMatchObject({ cfpRateBasisPoints: 30, versementLiberatoireBasisPoints: 100, estimatedCfpCents: 300, estimatedIncomeTaxCents: 1_000 });
   });
 
@@ -106,5 +108,19 @@ describe("réserve du tableau de bord", () => {
 
   it("demande la configuration lorsqu’aucun profil n’est applicable", () => {
     expect(calculate({ context: context({ profile: null }) })).toMatchObject({ calculation: null, unavailableReason: "profile-not-configured" });
+  });
+
+  it("ne produit aucun montant partiel pendant l’ACRE active", () => {
+    expect(calculate({
+      calculationDate: "2026-12-31",
+      context: context({ activityStartedOn: "2026-07-01", profile: profile({ hasAcre: true }), acreRule: newAcre }),
+    })).toEqual({ calculation: null, unavailableReason: "acre-cap-unmodeled", trackedCashAfterReserveCents: null });
+  });
+
+  it("redevient disponible au taux normal après l’ACRE", () => {
+    expect(calculate({
+      calculationDate: "2027-07-01",
+      context: context({ activityStartedOn: "2026-07-01", profile: profile({ hasAcre: true }), acreRule: newAcre }),
+    })).toMatchObject({ unavailableReason: null, calculation: { socialRateBasisPoints: 1230, acreApplied: false } });
   });
 });

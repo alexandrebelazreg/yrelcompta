@@ -90,28 +90,16 @@ export function roundFiscalAmount(turnoverCents: number | string | bigint, rateB
   return safeNumber((turnover * rate + BASIS_POINTS / BigInt(2)) / BASIS_POINTS);
 }
 
-function effectiveSocialRate(
+function acreReference(
   date: string,
   activityStartedOn: string,
   profile: BusinessFiscalProfile,
-  rule: FiscalSocialRuleVersion,
   acreRule: AcreRuleVersion | null,
-): { rate: number; applied: boolean; endsOn: string | null } {
-  if (!profile.hasAcre) return { rate: rule.socialContributionBasisPoints, applied: false, endsOn: null };
+): { active: boolean; endsOn: string | null } {
+  if (!profile.hasAcre) return { active: false, endsOn: null };
   if (!acreRule) throw new Error("FISCAL_ACRE_RULE_REQUIRED");
   const endsOn = calculateAcreEndDate(activityStartedOn, acreRule.durationQuartersAfterStart);
-  const applied = date >= activityStartedOn && date <= endsOn;
-  return {
-    rate: applied
-      ? roundRateUpToIncrement(
-        rule.socialContributionBasisPoints,
-        acreRule.paidFractionBasisPoints,
-        acreRule.rateRoundingIncrementBasisPoints,
-      )
-      : rule.socialContributionBasisPoints,
-    applied,
-    endsOn,
-  };
+  return { active: date >= activityStartedOn && date <= endsOn, endsOn };
 }
 
 export function calculateFiscalReserve(
@@ -124,19 +112,20 @@ export function calculateFiscalReserve(
 ): FiscalReserveCalculation {
   assertIsoDate(calculationDate);
   const turnover = safeNumber(exactInteger(turnoverCents));
-  const social = effectiveSocialRate(calculationDate, activityStartedOn, profile, rule, acreRule);
+  const acre = acreReference(calculationDate, activityStartedOn, profile, acreRule);
+  if (acre.active) throw new Error("FISCAL_ACRE_CAP_UNMODELED");
   const cfpRate = profile.cfpCategory === "commercial" ? rule.cfpCommercialBasisPoints : rule.cfpArtisanBasisPoints;
   const versementRate = profile.versementLiberatoire ? rule.versementLiberatoireBasisPoints : 0;
-  const socialAmount = roundFiscalAmount(turnover, social.rate);
+  const socialAmount = roundFiscalAmount(turnover, rule.socialContributionBasisPoints);
   const cfpAmount = roundFiscalAmount(turnover, cfpRate);
   const incomeTaxAmount = roundFiscalAmount(turnover, versementRate);
   return {
     turnoverCents: turnover,
-    socialRateBasisPoints: social.rate,
+    socialRateBasisPoints: rule.socialContributionBasisPoints,
     cfpRateBasisPoints: cfpRate,
     versementLiberatoireBasisPoints: versementRate,
-    acreApplied: social.applied,
-    acreEndsOn: social.endsOn,
+    acreApplied: false,
+    acreEndsOn: acre.endsOn,
     estimatedSocialContributionsCents: socialAmount,
     estimatedCfpCents: cfpAmount,
     estimatedIncomeTaxCents: incomeTaxAmount,
@@ -157,6 +146,13 @@ export function calculateDashboardFiscalReserve(input: {
   if (!input.context.rule || (input.context.profile.hasAcre && !input.context.acreRule)) {
     return { calculation: null, unavailableReason: "rule-not-available", trackedCashAfterReserveCents: null };
   }
+  const acre = acreReference(
+    input.calculationDate,
+    input.context.activityStartedOn,
+    input.context.profile,
+    input.context.acreRule,
+  );
+  if (acre.active) return { calculation: null, unavailableReason: "acre-cap-unmodeled", trackedCashAfterReserveCents: null };
   const calculation = calculateFiscalReserve(
     input.grossCollectedCents,
     input.calculationDate,

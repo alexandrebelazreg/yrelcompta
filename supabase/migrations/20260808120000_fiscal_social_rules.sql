@@ -4,6 +4,13 @@
 
 create type public.fiscal_activity_category as enum ('micro_bic_goods');
 create type public.cfp_category as enum ('commercial', 'artisan');
+create type public.fiscal_evaluation_status as enum (
+  'not-evaluated-historically',
+  'evaluated',
+  'profile-or-rule-unavailable',
+  'acre-cap-unmodeled',
+  'mixed-fiscal-version-period'
+);
 
 create table public.fiscal_social_rule_versions (
   id uuid primary key default gen_random_uuid(),
@@ -172,7 +179,7 @@ begin
     if p_effective_from <= previous.effective_from then
       raise exception 'fiscal profile effective date must increase' using errcode = '23514';
     end if;
-    if pg_catalog.extract(month from p_effective_from) <> 1 or pg_catalog.extract(day from p_effective_from) <> 1 then
+    if extract(month from p_effective_from) <> 1 or extract(day from p_effective_from) <> 1 then
       raise exception 'later fiscal profile must start on January 1' using errcode = '23514';
     end if;
     if p_effective_from <= today_paris then
@@ -283,12 +290,40 @@ begin
 end;
 $$;
 
+create function public.theoretical_acre_social_rate(
+  p_normal_rate_basis_points integer,
+  p_paid_fraction_basis_points integer,
+  p_rounding_increment_basis_points integer
+)
+returns integer
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  rounding_divisor bigint;
+begin
+  if p_normal_rate_basis_points < 0 or p_paid_fraction_basis_points < 0
+    or p_rounding_increment_basis_points <= 0 then
+    raise exception 'invalid theoretical ACRE rate input' using errcode = '22023';
+  end if;
+  rounding_divisor := 10000::bigint * p_rounding_increment_basis_points;
+  return (
+    (p_normal_rate_basis_points::bigint * p_paid_fraction_basis_points + rounding_divisor - 1)
+    / rounding_divisor
+    * p_rounding_increment_basis_points
+  )::integer;
+end;
+$$;
+
 create function public.get_fiscal_reserve_snapshot(
   p_business_id uuid,
-  p_calculation_date date,
+  p_period_start date,
+  p_period_end date,
   p_turnover_cents bigint
 )
 returns table (
+  evaluation_status public.fiscal_evaluation_status,
   fiscal_profile_id uuid,
   fiscal_rule_version_id uuid,
   acre_rule_version_id uuid,
@@ -310,50 +345,66 @@ declare
   profile public.business_fiscal_profiles;
   legal_rule public.fiscal_social_rule_versions;
   acre_rule public.acre_rule_versions;
-  normal_social_rate integer;
-  rounding_divisor bigint;
+  acre_ends_on date;
+  profile_found boolean;
+  legal_rule_found boolean;
 begin
-  if p_business_id is null or p_calculation_date is null or p_turnover_cents is null or p_turnover_cents < 0 then
+  if p_business_id is null or p_period_start is null or p_period_end is null
+    or p_period_start > p_period_end or p_turnover_cents is null or p_turnover_cents < 0 then
     raise exception 'invalid fiscal snapshot input' using errcode = '22023';
   end if;
 
+  evaluation_status := 'profile-or-rule-unavailable';
+
   select * into settings from public.business_settings where business_id = p_business_id;
-  if not found or settings.activity_started_on is null then return; end if;
+  if not found or settings.activity_started_on is null then return next; return; end if;
 
   select * into profile from public.business_fiscal_profiles
-  where business_id = p_business_id and effective_from <= p_calculation_date
+  where business_id = p_business_id and effective_from <= p_period_start
   order by effective_from desc limit 1;
-  if not found then return; end if;
+  profile_found := found;
 
   select * into legal_rule from public.fiscal_social_rule_versions
-  where activity_category = 'micro_bic_goods' and effective_from <= p_calculation_date
+  where activity_category = 'micro_bic_goods' and effective_from <= p_period_start
   order by effective_from desc limit 1;
-  if not found then return; end if;
+  legal_rule_found := found;
 
-  fiscal_profile_id := profile.id;
-  fiscal_rule_version_id := legal_rule.id;
-  normal_social_rate := legal_rule.social_contribution_basis_points;
-  social_rate_basis_points := normal_social_rate;
-  acre_rule_version_id := null;
-  acre_applied := false;
+  if exists (
+    select 1 from public.business_fiscal_profiles
+    where business_id = p_business_id
+      and effective_from > p_period_start and effective_from <= p_period_end
+  ) or exists (
+    select 1 from public.fiscal_social_rule_versions
+    where activity_category = 'micro_bic_goods'
+      and effective_from > p_period_start and effective_from <= p_period_end
+  ) then
+    evaluation_status := 'mixed-fiscal-version-period';
+    return next;
+    return;
+  end if;
+
+  if not profile_found or not legal_rule_found then return next; return; end if;
 
   if profile.has_acre then
     select * into acre_rule from public.acre_rule_versions
     where activity_started_from <= settings.activity_started_on
     order by activity_started_from desc limit 1;
-    if not found then return; end if;
-    acre_rule_version_id := acre_rule.id;
-    if p_calculation_date between settings.activity_started_on
-      and public.acre_period_end(settings.activity_started_on, acre_rule.duration_quarters_after_start) then
-      rounding_divisor := 10000::bigint * acre_rule.rate_rounding_increment_basis_points;
-      social_rate_basis_points := (
-        (normal_social_rate::bigint * acre_rule.paid_fraction_basis_points + rounding_divisor - 1)
-        / rounding_divisor
-        * acre_rule.rate_rounding_increment_basis_points
-      )::integer;
-      acre_applied := true;
+    if not found then return next; return; end if;
+    acre_ends_on := public.acre_period_end(settings.activity_started_on, acre_rule.duration_quarters_after_start);
+    if p_period_start <= acre_ends_on and p_period_end >= settings.activity_started_on then
+      evaluation_status := 'acre-cap-unmodeled';
+      return next;
+      return;
     end if;
   end if;
+
+  evaluation_status := 'evaluated';
+  fiscal_profile_id := profile.id;
+  fiscal_rule_version_id := legal_rule.id;
+  acre_rule_version_id := null;
+  if profile.has_acre then acre_rule_version_id := acre_rule.id; end if;
+  social_rate_basis_points := legal_rule.social_contribution_basis_points;
+  acre_applied := false;
 
   cfp_rate_basis_points := case profile.cfp_category
     when 'commercial' then legal_rule.cfp_commercial_basis_points
@@ -371,10 +422,12 @@ $$;
 
 revoke all on function public.acre_period_end(date, integer) from public;
 revoke all on function public.round_fiscal_amount(bigint, integer) from public;
-revoke all on function public.get_fiscal_reserve_snapshot(uuid, date, bigint) from public;
+revoke all on function public.theoretical_acre_social_rate(integer, integer, integer) from public;
+revoke all on function public.get_fiscal_reserve_snapshot(uuid, date, date, bigint) from public;
 
 alter table public.turnover_declarations
   add column fiscal_evaluated boolean not null default false,
+  add column fiscal_evaluation_status public.fiscal_evaluation_status not null default 'not-evaluated-historically',
   add column fiscal_profile_id uuid,
   add column fiscal_rule_version_id uuid references public.fiscal_social_rule_versions(id) on delete restrict,
   add column acre_rule_version_id uuid references public.acre_rule_versions(id) on delete restrict,
@@ -392,6 +445,7 @@ alter table public.turnover_declarations
   add constraint turnover_declarations_fiscal_snapshot_consistent check (
     (
       fiscal_evaluated = false
+      and fiscal_evaluation_status <> 'evaluated'
       and fiscal_profile_id is null
       and fiscal_rule_version_id is null
       and acre_rule_version_id is null
@@ -405,6 +459,7 @@ alter table public.turnover_declarations
       and estimated_total_reserve_cents is null
     ) or (
       fiscal_evaluated = true
+      and fiscal_evaluation_status = 'evaluated'
       and fiscal_profile_id is not null
       and fiscal_rule_version_id is not null
       and social_rate_basis_points_snapshot between 0 and 10000
@@ -492,15 +547,15 @@ begin
   end if;
 
   select * into fiscal_snapshot
-  from public.get_fiscal_reserve_snapshot(p_business_id, p_period_end, p_declared_turnover_cents);
-  fiscal_is_evaluated := found;
+  from public.get_fiscal_reserve_snapshot(p_business_id, p_period_start, p_period_end, p_declared_turnover_cents);
+  fiscal_is_evaluated := found and fiscal_snapshot.evaluation_status = 'evaluated';
 
   insert into public.turnover_declarations (
     id, business_id, period_start, period_end, due_on, declaration_period_snapshot, vat_regime_snapshot,
     revision_no, previous_declaration_id, calculation_status, suggested_turnover_cents,
     gross_receipts_snapshot_cents, customer_refunds_snapshot_cents, payment_count_snapshot, refund_count_snapshot,
     declared_turnover_cents, submitted_on, external_reference, adjustment_reason, created_by,
-    fiscal_evaluated, fiscal_profile_id, fiscal_rule_version_id, acre_rule_version_id,
+    fiscal_evaluated, fiscal_evaluation_status, fiscal_profile_id, fiscal_rule_version_id, acre_rule_version_id,
     social_rate_basis_points_snapshot, cfp_rate_basis_points_snapshot,
     versement_liberatoire_basis_points_snapshot, acre_applied_snapshot,
     estimated_social_contributions_cents, estimated_cfp_cents,
@@ -509,7 +564,7 @@ begin
     declaration_id, p_business_id, p_period_start, p_period_end, expected_due, settings.declaration_period, settings.vat_regime,
     1, null, calc_status, suggested, gross_receipts, customer_refunds, payment_count, refund_count,
     p_declared_turnover_cents, p_submitted_on, nullif(btrim(p_external_reference), ''), reason, actor,
-    fiscal_is_evaluated,
+    fiscal_is_evaluated, fiscal_snapshot.evaluation_status,
     case when fiscal_is_evaluated then fiscal_snapshot.fiscal_profile_id else null end,
     case when fiscal_is_evaluated then fiscal_snapshot.fiscal_rule_version_id else null end,
     case when fiscal_is_evaluated then fiscal_snapshot.acre_rule_version_id else null end,
@@ -603,15 +658,15 @@ begin
   end if;
 
   select * into fiscal_snapshot
-  from public.get_fiscal_reserve_snapshot(p_business_id, p_period_end, p_declared_turnover_cents);
-  fiscal_is_evaluated := found;
+  from public.get_fiscal_reserve_snapshot(p_business_id, p_period_start, p_period_end, p_declared_turnover_cents);
+  fiscal_is_evaluated := found and fiscal_snapshot.evaluation_status = 'evaluated';
 
   insert into public.turnover_declarations (
     id, business_id, period_start, period_end, due_on, declaration_period_snapshot, vat_regime_snapshot,
     revision_no, previous_declaration_id, calculation_status, suggested_turnover_cents,
     gross_receipts_snapshot_cents, customer_refunds_snapshot_cents, payment_count_snapshot, refund_count_snapshot,
     declared_turnover_cents, submitted_on, external_reference, adjustment_reason, created_by,
-    fiscal_evaluated, fiscal_profile_id, fiscal_rule_version_id, acre_rule_version_id,
+    fiscal_evaluated, fiscal_evaluation_status, fiscal_profile_id, fiscal_rule_version_id, acre_rule_version_id,
     social_rate_basis_points_snapshot, cfp_rate_basis_points_snapshot,
     versement_liberatoire_basis_points_snapshot, acre_applied_snapshot,
     estimated_social_contributions_cents, estimated_cfp_cents,
@@ -620,7 +675,7 @@ begin
     declaration_id, p_business_id, p_period_start, p_period_end, expected_due, settings.declaration_period, settings.vat_regime,
     previous.revision_no + 1, previous.id, calc_status, suggested, gross_receipts, customer_refunds, payment_count, refund_count,
     p_declared_turnover_cents, p_submitted_on, nullif(btrim(p_external_reference), ''), reason, actor,
-    fiscal_is_evaluated,
+    fiscal_is_evaluated, fiscal_snapshot.evaluation_status,
     case when fiscal_is_evaluated then fiscal_snapshot.fiscal_profile_id else null end,
     case when fiscal_is_evaluated then fiscal_snapshot.fiscal_rule_version_id else null end,
     case when fiscal_is_evaluated then fiscal_snapshot.acre_rule_version_id else null end,

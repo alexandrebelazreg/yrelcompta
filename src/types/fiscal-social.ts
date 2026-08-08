@@ -2,6 +2,12 @@ import type { VatRegime } from "@/types/database";
 
 export type FiscalActivityCategory = "micro_bic_goods";
 export type CfpCategory = "commercial" | "artisan";
+export type FiscalEvaluationStatus =
+  | "not-evaluated-historically"
+  | "evaluated"
+  | "profile-or-rule-unavailable"
+  | "acre-cap-unmodeled"
+  | "mixed-fiscal-version-period";
 
 export interface FiscalSocialRuleVersion {
   id: string;
@@ -64,7 +70,8 @@ export type FiscalReserveUnavailableReason =
   | "refund-review-required"
   | "vat-unmodeled"
   | "profile-not-configured"
-  | "rule-not-available";
+  | "rule-not-available"
+  | "acre-cap-unmodeled";
 
 export interface DashboardFiscalReserve {
   calculation: FiscalReserveCalculation | null;

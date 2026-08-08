@@ -30,7 +30,8 @@ describe("migration des règles fiscales et sociales", () => {
     expect(sql).toContain("create table public.acre_rule_versions");
     expect(sql).toContain("date '0001-01-01', 5000, 3, 10");
     expect(sql).toContain("date '2026-07-01', 7500, 3, 10");
-    expect(sql).toContain("normal_social_rate::bigint * acre_rule.paid_fraction_basis_points + rounding_divisor - 1");
+    const theoreticalRate = functionSql("public.theoretical_acre_social_rate", "create function public.get_fiscal_reserve_snapshot");
+    expect(theoreticalRate).toContain("p_normal_rate_basis_points::bigint * p_paid_fraction_basis_points + rounding_divisor - 1");
   });
 
   it("rend les règles et profils immuables et sans écriture authenticated", () => {
@@ -53,6 +54,9 @@ describe("migration des règles fiscales et sociales", () => {
     expect(fn).toContain("first fiscal profile must start with activity");
     expect(fn).toContain("later fiscal profile must start on January 1");
     expect(fn).toContain("later fiscal profile must be future");
+    expect(fn).toContain("extract(month from p_effective_from)");
+    expect(fn).toContain("extract(day from p_effective_from)");
+    expect(fn).not.toContain("pg_catalog.extract");
     expect(fn).toContain("period_end >= p_effective_from");
     expect(fn).toContain("'business_fiscal_profile'");
   });
@@ -66,7 +70,8 @@ describe("migration des règles fiscales et sociales", () => {
 
   it("laisse les anciennes déclarations non évaluées et sans reconstruction", () => {
     expect(sql).toContain("add column fiscal_evaluated boolean not null default false");
-    expect(sql).toContain("fiscal_evaluated = false and fiscal_profile_id is null");
+    expect(sql).toContain("add column fiscal_evaluation_status public.fiscal_evaluation_status not null default 'not-evaluated-historically'");
+    expect(sql).toContain("fiscal_evaluated = false and fiscal_evaluation_status <> 'evaluated'");
     expect(migration).not.toMatch(/update public\.turnover_declarations/i);
     expect(declarationPage).toContain("Estimation fiscale non évaluée historiquement");
   });
@@ -74,12 +79,29 @@ describe("migration des règles fiscales et sociales", () => {
   it("snapshote les taux et tous les montants sur les nouvelles déclarations", () => {
     for (const column of ["fiscal_profile_id", "fiscal_rule_version_id", "acre_rule_version_id", "social_rate_basis_points_snapshot", "cfp_rate_basis_points_snapshot", "versement_liberatoire_basis_points_snapshot", "acre_applied_snapshot", "estimated_social_contributions_cents", "estimated_cfp_cents", "estimated_income_tax_cents", "estimated_total_reserve_cents"]) expect(sql).toContain(column);
     expect(migration.match(/create or replace function public\.(?:record|revise)_turnover_declaration/g)).toHaveLength(2);
-    expect(migration.match(/get_fiscal_reserve_snapshot\(p_business_id, p_period_end, p_declared_turnover_cents\)/g)).toHaveLength(2);
+    expect(migration.match(/get_fiscal_reserve_snapshot\(p_business_id, p_period_start, p_period_end, p_declared_turnover_cents\)/g)).toHaveLength(2);
   });
 
-  it("résout chaque révision avec la date historique de période", () => {
+  it("résout les versions au début et refuse une frontière dans la période", () => {
+    const snapshot = functionSql("public.get_fiscal_reserve_snapshot", "revoke all on function public.acre_period_end");
+    expect(snapshot).toContain("effective_from <= p_period_start");
+    expect(snapshot).toContain("effective_from > p_period_start and effective_from <= p_period_end");
+    expect(snapshot).toContain("evaluation_status := 'mixed-fiscal-version-period'");
+    expect(declarationPage).toContain("cette période traverse un changement de règle ou de configuration");
+  });
+
+  it("rend une période ACRE non évaluée sans aucun snapshot partiel", () => {
+    const snapshot = functionSql("public.get_fiscal_reserve_snapshot", "revoke all on function public.acre_period_end");
+    expect(snapshot).toContain("p_period_start <= acre_ends_on and p_period_end >= settings.activity_started_on");
+    expect(snapshot).toContain("evaluation_status := 'acre-cap-unmodeled'");
+    expect(snapshot.indexOf("evaluation_status := 'acre-cap-unmodeled'")).toBeLessThan(snapshot.indexOf("fiscal_profile_id := profile.id"));
+    expect(declarationPage).toContain("le plafond légal d’exonération n’est pas encore modélisé");
+  });
+
+  it("enregistre et révise toujours avec les deux bornes historiques", () => {
     const revise = functionSql("public.revise_turnover_declaration", "comment on table public.fiscal_social_rule_versions");
-    expect(revise).toContain("p_period_end, p_declared_turnover_cents");
+    expect(revise).toContain("p_period_start, p_period_end, p_declared_turnover_cents");
+    expect(revise).toContain("fiscal_snapshot.evaluation_status = 'evaluated'");
     expect(revise).not.toContain("current_date");
     expect(revise).not.toMatch(/update public\.turnover_declarations/i);
   });

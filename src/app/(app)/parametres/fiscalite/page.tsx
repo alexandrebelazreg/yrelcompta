@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { getAuthenticatedContext } from "@/lib/auth/context";
-import { calculateAcreEndDate } from "@/lib/fiscal-social/calculations";
+import { calculateAcreEndDate, roundRateUpToIncrement } from "@/lib/fiscal-social/calculations";
 import { createFiscalProfileAction } from "@/lib/fiscal-social/actions";
 import { formatBasisPoints } from "@/lib/fiscal-social/presentation";
 import { getFiscalSettingsPageData } from "@/lib/fiscal-social/queries";
@@ -24,6 +24,9 @@ export default async function FiscalSettingsPage({ searchParams }: { searchParam
   const rule = data.activeRule;
   const acreEnd = active?.hasAcre && data.activeAcreRule && data.activityStartedOn
     ? calculateAcreEndDate(data.activityStartedOn, data.activeAcreRule.durationQuartersAfterStart)
+    : null;
+  const theoreticalAcreRate = active?.hasAcre && data.activeAcreRule && rule
+    ? roundRateUpToIncrement(rule.socialContributionBasisPoints, data.activeAcreRule.paidFractionBasisPoints, data.activeAcreRule.rateRoundingIncrementBasisPoints)
     : null;
 
   return <>
@@ -55,7 +58,7 @@ export default async function FiscalSettingsPage({ searchParams }: { searchParam
         <div><dt>Franchise TVA — seuil majoré</dt><dd>{formatEuroCents(rule.vatFranchiseToleranceCeilingCents)}</dd></div>
         <div><dt>Source contrôlée</dt><dd>{rule.sourceLabel} · {formatFrenchDate(rule.sourceCheckedOn)}</dd></div>
       </dl>
-      {active?.hasAcre && <p className="dashboard-note">ACRE : {data.activeAcreRule ? `${formatBasisPoints(data.activeAcreRule.paidFractionBasisPoints)} du taux normal, arrondi par pas de ${formatBasisPoints(data.activeAcreRule.rateRoundingIncrementBasisPoints)}. Fin théorique : ${acreEnd ? formatFrenchDate(acreEnd) : "indisponible"}.` : "règle non disponible"}</p>}</> : <p>Règle non disponible pour la date courante.</p>}
+      {active?.hasAcre && <><p className="dashboard-note">ACRE : {data.activeAcreRule ? `${formatBasisPoints(data.activeAcreRule.paidFractionBasisPoints)} du taux normal, soit un taux théorique de ${theoreticalAcreRate === null ? "indisponible" : formatBasisPoints(theoreticalAcreRate)}, arrondi par pas de ${formatBasisPoints(data.activeAcreRule.rateRoundingIncrementBasisPoints)}. Fin théorique : ${acreEnd ? formatFrenchDate(acreEnd) : "indisponible"}.` : "règle non disponible"}</p><p className="declaration-warning">Le taux ACRE est affiché à titre de référence. La réserve monétaire pendant l’ACRE reste indisponible tant que son plafond légal n’est pas modélisé.</p></>}</> : <p>Règle non disponible pour la date courante.</p>}
       <p className="dashboard-note">Ces plafonds sont informatifs. Cette version ne prorate pas les seuils et n’automatise aucun changement de régime micro ou de TVA.</p>
     </section>
 

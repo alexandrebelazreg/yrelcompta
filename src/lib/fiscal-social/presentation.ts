@@ -14,4 +14,5 @@ export const fiscalReserveUnavailableMessages: Record<FiscalReserveUnavailableRe
   "vat-unmodeled": "Estimation indisponible : la ventilation hors taxes / TVA n’est pas modélisée.",
   "profile-not-configured": "Paramètres fiscaux à configurer avant de produire une estimation.",
   "rule-not-available": "Règle légale non disponible pour cette date.",
+  "acre-cap-unmodeled": "Estimation indisponible pendant l’ACRE : le plafond légal d’exonération n’est pas encore modélisé.",
 };
