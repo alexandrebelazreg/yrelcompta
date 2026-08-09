@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { InfoTip } from "@/components/ui/info-tip";
+import { MetricCard } from "@/components/ui/metric-card";
 import { getAuthenticatedContext } from "@/lib/auth/context";
 import { calculateDashboardMetrics, resolveDashboardMonth } from "@/lib/dashboard/calculations";
 import { fixedCostCoverageMessage } from "@/lib/dashboard/presentation";
@@ -40,6 +41,10 @@ function MonthSelector({ monthKey }: { monthKey: string }) {
   </form>;
 }
 
+function DashboardSectionHeading({ id, title, help, action }: { id: string; title: string; help?: React.ReactNode; action?: React.ReactNode }) {
+  return <div className="section-heading dashboard-section-heading"><div className="info-line"><h2 id={id}>{title}</h2>{help && <InfoTip label={`En savoir plus sur ${title}`}>{help}</InfoTip>}</div>{action}</div>;
+}
+
 function DashboardContent({ metrics, recentSales }: { metrics: DashboardMetrics; recentSales: DashboardRecentSale[] }) {
   const profitabilityAvailable = metrics.profitability.completeCount > 0;
   const referenceAvailable = metrics.reference.saleCount > 0;
@@ -49,23 +54,22 @@ function DashboardContent({ metrics, recentSales }: { metrics: DashboardMetrics;
 
   return <>
     <section className="dashboard-section" aria-labelledby="cash-heading">
-      <div className="section-heading"><div><p className="eyebrow">Flux réellement datés</p><h2 id="cash-heading">Trésorerie du mois</h2></div></div>
+      <DashboardSectionHeading id="cash-heading" title="Trésorerie du mois" help={<>Détail : {formatEuroCents(metrics.cash.grossCollectedCents)} encaissés, {formatEuroCents(metrics.cash.customerRefundedCents)} remboursés aux clientes, {formatEuroCents(metrics.cash.expensesPaidCents)} payés et {formatEuroCents(metrics.cash.expenseRefundedCents)} remboursés par les fournisseurs.</>} />
       <div className="metric-grid">
-        <Card><p>Chiffre d’affaires encaissé</p><strong>{formatEuroCents(metrics.cash.revenueCollectedCents)}</strong><small>Brut encaissé moins remboursements clients</small></Card>
-        <Card><p>Commissions</p><strong>{formatEuroCents(metrics.cash.platformFeesCents)}</strong><small>Suivies séparément, sans création de dépense</small></Card>
-        <Card><p>Dépenses professionnelles nettes</p><strong>{formatEuroCents(metrics.cash.netExpensesCents)}</strong><small>Part professionnelle payée moins remboursements fournisseurs</small></Card>
-        <Card><p>Flux net suivi</p><strong>{formatEuroCents(metrics.cash.trackedCashCents)}</strong><small>Encaissements nets de remboursements, moins commissions et dépenses professionnelles payées. Ce montant n’est pas un bénéfice comptable ou fiscal.</small></Card>
+        <MetricCard label="Chiffre d’affaires encaissé" value={formatEuroCents(metrics.cash.revenueCollectedCents)} help="Brut encaissé moins remboursements clients." />
+        <MetricCard label="Commissions" value={formatEuroCents(metrics.cash.platformFeesCents)} help="Suivies séparément, sans création de dépense." />
+        <MetricCard label="Dépenses professionnelles nettes" value={formatEuroCents(metrics.cash.netExpensesCents)} help="Part professionnelle payée moins remboursements fournisseurs." />
+        <MetricCard label="Flux net suivi" value={formatEuroCents(metrics.cash.trackedCashCents)} help="Encaissements nets de remboursements, moins commissions et dépenses professionnelles payées. Ce montant n’est pas un bénéfice comptable ou fiscal." />
       </div>
-      <p className="dashboard-note">Détail : {formatEuroCents(metrics.cash.grossCollectedCents)} encaissés, {formatEuroCents(metrics.cash.customerRefundedCents)} remboursés aux clientes, {formatEuroCents(metrics.cash.expensesPaidCents)} payés et {formatEuroCents(metrics.cash.expenseRefundedCents)} remboursés par les fournisseurs.</p>
     </section>
 
     <section className="dashboard-section" aria-labelledby="profitability-heading">
-      <div className="section-heading"><div><p className="eyebrow">Ventes validées et snapshots historiques</p><h2 id="profitability-heading">Rentabilité de fabrication du mois</h2></div></div>
+      <DashboardSectionHeading id="profitability-heading" title="Rentabilité de fabrication du mois" help="Indicateurs issus des ventes validées et de leurs snapshots historiques." />
       <div className="metric-grid">
-        <Card><p>Ventes marchandises avec coût complet</p><strong>{profitabilityAvailable ? formatEuroCents(metrics.profitability.completeMerchandiseRevenueCents) : "Indisponible"}</strong><small>Hors livraison, après remise</small></Card>
-        <Card><p>Coût de fabrication historique</p><strong>{profitabilityAvailable ? formatEuroCents(metrics.profitability.manufacturingCostCents) : "Indisponible"}</strong><small>Snapshots complets uniquement</small></Card>
-        <Card><p>Marge de fabrication historique</p><strong>{profitabilityAvailable ? formatEuroCents(metrics.profitability.manufacturingMarginCents) : "Indisponible"}</strong><small>Après remises, hors livraison, commissions, remboursements, cotisations, TVA et impôt.</small></Card>
-        <Card><p>Taux de marge de fabrication</p><strong>{percentOrUnavailable(metrics.profitability.marginRateBasisPoints)}</strong><small>Marge ÷ chiffre d’affaires marchand couvert</small></Card>
+        <MetricCard label="Ventes marchandises avec coût complet" value={profitabilityAvailable ? formatEuroCents(metrics.profitability.completeMerchandiseRevenueCents) : "Indisponible"} help="Hors livraison, après remise." />
+        <MetricCard label="Coût de fabrication historique" value={profitabilityAvailable ? formatEuroCents(metrics.profitability.manufacturingCostCents) : "Indisponible"} help="Snapshots complets uniquement." />
+        <MetricCard label="Marge de fabrication historique" value={profitabilityAvailable ? formatEuroCents(metrics.profitability.manufacturingMarginCents) : "Indisponible"} help="Après remises, hors livraison, commissions, remboursements, cotisations, TVA et impôt." />
+        <MetricCard label="Taux de marge de fabrication" value={percentOrUnavailable(metrics.profitability.marginRateBasisPoints)} help="Marge divisée par le chiffre d’affaires marchand couvert." />
       </div>
       <div className="snapshot-coverage">
         <strong>{metrics.profitability.completeCount} ventes avec coût complet sur {metrics.profitability.saleCount} ventes validées</strong>
@@ -74,38 +78,36 @@ function DashboardContent({ metrics, recentSales }: { metrics: DashboardMetrics;
     </section>
 
     <section className="dashboard-section" aria-labelledby="fiscal-reserve-heading">
-      <div className="section-heading"><div><p className="eyebrow">Prévision de trésorerie distincte</p><h2 id="fiscal-reserve-heading">Réserve fiscale et sociale estimée</h2></div><Link className="secondary-link" href="/parametres/fiscalite">Gérer les paramètres fiscaux</Link></div>
+      <DashboardSectionHeading id="fiscal-reserve-heading" title="Réserve fiscale et sociale estimée" help="Estimation interne de trésorerie uniquement. Hors CFE, TVA et impôt sur le revenu au barème progressif. YrelCompta ne transmet aucune déclaration." action={<Link className="secondary-link" href="/parametres/fiscalite">Gérer les paramètres fiscaux</Link>} />
       {metrics.fiscalReserve.calculation ? <>
         <div className="metric-grid">
-          <Card><p>CA encaissé utilisé comme base</p><strong>{formatEuroCents(metrics.fiscalReserve.calculation.turnoverCents)}</strong><small>Encaissements bruts du mois, sans remboursement client</small></Card>
-          <Card><p>Cotisations sociales estimées</p><strong>{formatEuroCents(metrics.fiscalReserve.calculation.estimatedSocialContributionsCents)}</strong><small>Taux effectif {formatBasisPoints(metrics.fiscalReserve.calculation.socialRateBasisPoints)}{metrics.fiscalReserve.calculation.acreApplied ? " avec ACRE" : ""}</small></Card>
-          <Card><p>CFP estimée</p><strong>{formatEuroCents(metrics.fiscalReserve.calculation.estimatedCfpCents)}</strong><small>Taux {formatBasisPoints(metrics.fiscalReserve.calculation.cfpRateBasisPoints)}, jamais réduit par l’ACRE</small></Card>
-          {metrics.fiscalReserve.calculation.versementLiberatoireBasisPoints > 0 && <Card><p>Versement libératoire estimé</p><strong>{formatEuroCents(metrics.fiscalReserve.calculation.estimatedIncomeTaxCents)}</strong><small>Taux {formatBasisPoints(metrics.fiscalReserve.calculation.versementLiberatoireBasisPoints)}</small></Card>}
-          <Card><p>Réserve totale estimée</p><strong>{formatEuroCents(metrics.fiscalReserve.calculation.estimatedTotalReserveCents)}</strong><small>Cotisations sociales + CFP + versement libératoire activé</small></Card>
-          <Card><p>Flux net suivi après réserve estimée</p><strong>{moneyOrUnavailable(metrics.fiscalReserve.trackedCashAfterReserveCents)}</strong><small>Flux net suivi actuel moins cette réserve. Ce n’est ni un bénéfice net, ni le montant réellement dû.</small></Card>
+          <MetricCard label="CA encaissé utilisé comme base" value={formatEuroCents(metrics.fiscalReserve.calculation.turnoverCents)} help="Encaissements bruts du mois, sans remboursement client." />
+          <MetricCard label="Cotisations sociales estimées" value={formatEuroCents(metrics.fiscalReserve.calculation.estimatedSocialContributionsCents)} help={<>Taux effectif {formatBasisPoints(metrics.fiscalReserve.calculation.socialRateBasisPoints)}{metrics.fiscalReserve.calculation.acreApplied ? " avec ACRE" : ""}.</>} />
+          <MetricCard label="CFP estimée" value={formatEuroCents(metrics.fiscalReserve.calculation.estimatedCfpCents)} help={<>Taux {formatBasisPoints(metrics.fiscalReserve.calculation.cfpRateBasisPoints)}, jamais réduit par l’ACRE.</>} />
+          {metrics.fiscalReserve.calculation.versementLiberatoireBasisPoints > 0 && <MetricCard label="Versement libératoire estimé" value={formatEuroCents(metrics.fiscalReserve.calculation.estimatedIncomeTaxCents)} help={<>Taux {formatBasisPoints(metrics.fiscalReserve.calculation.versementLiberatoireBasisPoints)}.</>} />}
+          <MetricCard label="Réserve totale estimée" value={formatEuroCents(metrics.fiscalReserve.calculation.estimatedTotalReserveCents)} help="Cotisations sociales, CFP et versement libératoire activé." />
+          <MetricCard label="Flux net suivi après réserve estimée" value={moneyOrUnavailable(metrics.fiscalReserve.trackedCashAfterReserveCents)} help="Flux net suivi actuel moins cette réserve. Ce n’est ni un bénéfice net, ni le montant réellement dû." />
         </div>
-        <p className="dashboard-note">Estimation interne de trésorerie uniquement. Hors CFE, TVA et impôt sur le revenu au barème progressif. YrelCompta ne transmet aucune déclaration.</p>
       </> : <div className="card fiscal-reserve-unavailable"><strong>Estimation indisponible</strong><p>{metrics.fiscalReserve.unavailableReason ? fiscalReserveUnavailableMessages[metrics.fiscalReserve.unavailableReason] : "Données indisponibles."}</p></div>}
     </section>
 
     <section className="dashboard-section" aria-labelledby="break-even-heading">
-      <div className="section-heading"><div><p className="eyebrow">Prévision distincte des flux</p><h2 id="break-even-heading">Charges fixes et seuil de rentabilité</h2></div></div>
+      <DashboardSectionHeading id="break-even-heading" title="Charges fixes et seuil de rentabilité" help="Les charges fixes sont annualisées depuis les modèles actifs, fixes et d’exploitation, puis ramenées au mois. Le seuil indique le chiffre d’affaires marchand mensuel nécessaire pour couvrir cette estimation avec la marge historique de référence." />
       <div className="metric-grid">
-        <Card><p>Charges fixes estimées / mois</p><strong>{moneyOrUnavailable(metrics.fixedCosts.monthlyCents)}</strong><small>Estimation issue des charges récurrentes actives classées en charges fixes. {metrics.fixedCosts.annualCents === null ? "" : `${formatEuroCents(metrics.fixedCosts.annualCents)} par an.`}</small><Link className="card-link" href="/depenses/recurrences">Gérer les charges fixes</Link></Card>
-        <Card><p>Taux de marge de fabrication de référence — 90 jours</p><strong>{referenceAvailable ? percentOrUnavailable(metrics.reference.marginRateBasisPoints) : "Indisponible"}</strong><small>{metrics.reference.saleCount} vente(s) complète(s) pondérée(s) par le chiffre d’affaires marchandises</small></Card>
-        <Card><p>Seuil de rentabilité estimé</p><strong>{moneyOrUnavailable(metrics.breakEven.monthlyRevenueCents)}</strong><small>{breakEvenReason} Seuil de couverture des charges fixes par la marge de fabrication. Il exclut notamment les cotisations sociales, la TVA, l’impôt et les coûts commerciaux non inclus dans la marge produit.</small></Card>
-        <Card><p>Écart après couverture des charges fixes</p><strong>{moneyOrUnavailable(metrics.fixedCostCoverage.deltaCents)}</strong><small>{fixedCostCoverageMessage(metrics.fixedCostCoverage.unavailableReason)}</small></Card>
+        <MetricCard label="Charges fixes estimées / mois" value={moneyOrUnavailable(metrics.fixedCosts.monthlyCents)} help="Estimation issue des charges récurrentes actives classées en charges fixes." secondary={metrics.fixedCosts.annualCents === null ? undefined : `${formatEuroCents(metrics.fixedCosts.annualCents)} par an`} action={<Link className="card-link" href="/depenses/recurrences">Gérer les charges fixes</Link>} />
+        <MetricCard label="Taux de marge de fabrication de référence — 90 jours" value={referenceAvailable ? percentOrUnavailable(metrics.reference.marginRateBasisPoints) : "Indisponible"} help={`${metrics.reference.saleCount} vente(s) complète(s) pondérée(s) par le chiffre d’affaires marchandises.`} />
+        <MetricCard label="Seuil de rentabilité estimé" value={moneyOrUnavailable(metrics.breakEven.monthlyRevenueCents)} help="Seuil de couverture des charges fixes par la marge de fabrication. Il exclut notamment les cotisations sociales, la TVA, l’impôt et les coûts commerciaux non inclus dans la marge produit." secondary={metrics.breakEven.monthlyRevenueCents === null ? breakEvenReason : undefined} />
+        <MetricCard label="Écart après couverture des charges fixes" value={moneyOrUnavailable(metrics.fixedCostCoverage.deltaCents)} help={metrics.fixedCostCoverage.deltaCents === null ? undefined : fixedCostCoverageMessage(metrics.fixedCostCoverage.unavailableReason)} secondary={metrics.fixedCostCoverage.deltaCents === null ? fixedCostCoverageMessage(metrics.fixedCostCoverage.unavailableReason) : undefined} />
       </div>
-      <p className="dashboard-note">Les charges fixes sont annualisées depuis les modèles actifs, fixes et d’exploitation, puis ramenées au mois. Le seuil indique le chiffre d’affaires marchand mensuel nécessaire pour couvrir cette estimation avec la marge historique de référence.</p>
     </section>
 
     <section className="dashboard-section" aria-labelledby="documents-heading">
-      <div className="section-heading"><div><p className="eyebrow">Suivi administratif</p><h2 id="documents-heading">Justificatifs manquants</h2></div><Link className="secondary-link" href="/documents">Ouvrir les documents</Link></div>
-      <Card><p>Dépenses validées sans document</p><strong>{metrics.missingDocumentCount}</strong><small>Décompte global, indépendant du mois sélectionné</small></Card>
+      <DashboardSectionHeading id="documents-heading" title="Justificatifs manquants" action={<Link className="secondary-link" href="/documents">Ouvrir les documents</Link>} />
+      <MetricCard label="Dépenses validées sans document" value={metrics.missingDocumentCount} help="Décompte global, indépendant du mois sélectionné." />
     </section>
 
     {recentSales.length === 0 ? <EmptyState title="Votre activité commence ici" description="Vos dernières ventes apparaîtront ici après leur création." /> : <section className="recent-sales">
-      <div className="section-heading"><div><p className="eyebrow">Activité récente</p><h2>Dernières ventes</h2></div><Link className="secondary-link" href="/ventes">Voir toutes les ventes</Link></div>
+      <div className="section-heading"><h2>Dernières ventes</h2><Link className="secondary-link" href="/ventes">Voir toutes les ventes</Link></div>
       {recentSales.map((sale) => <Link href={`/ventes/${sale.id}`} className="recent-sale" key={sale.id}><div><strong>{sale.reference}</strong><span>{formatFrenchDate(sale.orderedOn)} · {saleChannelLabels[sale.channel]}</span></div><strong>{formatEuroCents(sale.totalCents)}</strong></Link>)}
     </section>}
   </>;
@@ -133,7 +135,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   }
 
   return <>
-    <header className="page-header"><div><p className="eyebrow">Tableau de bord · {month.label}</p><h1>{firstName === "Bienvenue" ? firstName : `Bonjour ${firstName}`}</h1><p>{context.business?.name}</p></div><MonthSelector monthKey={month.key} /></header>
+    <header className="page-header"><div><h1>{firstName === "Bienvenue" ? firstName : `Bonjour ${firstName}`}</h1><p>{context.business?.name} · {month.label}</p></div><MonthSelector monthKey={month.key} /></header>
     {content}
   </>;
 }
