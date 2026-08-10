@@ -25,6 +25,8 @@ function parseBackendCredentials(value: unknown): ShopifyBackendCredentials | nu
     || typeof row.shop_domain !== "string"
     || typeof row.client_id !== "string"
     || typeof row.client_secret !== "string"
+    || (row.previous_client_secret !== null && typeof row.previous_client_secret !== "string")
+    || (row.previous_client_secret_valid_until !== null && typeof row.previous_client_secret_valid_until !== "string")
     || typeof row.access_token !== "string"
     || typeof row.access_token_expires_at !== "string"
     || !Array.isArray(row.granted_scopes)

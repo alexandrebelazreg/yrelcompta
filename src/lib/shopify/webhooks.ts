@@ -51,6 +51,29 @@ export function verifyShopifyWebhookHmac(rawBody: string | Buffer, receivedHmac:
   return expected.length === received.length && timingSafeEqual(expected, received);
 }
 
+export function verifyShopifyWebhookHmacWithRotation(
+  rawBody: string | Buffer,
+  receivedHmac: string,
+  secrets: {
+    clientSecret: string;
+    previousClientSecret: string | null;
+    previousClientSecretValidUntil: string | null;
+  },
+  now = Date.now(),
+): boolean {
+  if (verifyShopifyWebhookHmac(rawBody, receivedHmac, secrets.clientSecret)) return true;
+
+  const previousValidUntil = secrets.previousClientSecretValidUntil
+    ? Date.parse(secrets.previousClientSecretValidUntil)
+    : Number.NaN;
+  return Boolean(
+    secrets.previousClientSecret
+    && Number.isFinite(previousValidUntil)
+    && previousValidUntil > now
+    && verifyShopifyWebhookHmac(rawBody, receivedHmac, secrets.previousClientSecret),
+  );
+}
+
 export function hashShopifyWebhookPayload(rawBody: string | Buffer): string {
   return createHash("sha256").update(rawBody).digest("hex");
 }

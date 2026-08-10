@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getAuthenticatedContext } from "@/lib/auth/context";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import { requestShopifyToken } from "./auth";
 import { fetchShopifyShop } from "./client";
 import { normalizeShopDomain } from "./domain";
@@ -22,9 +21,9 @@ const connectionSchema = z.object({
 });
 
 async function actionContext() {
-  const [{ userId, context }, supabase] = await Promise.all([getAuthenticatedContext(), createClient()]);
-  if (!userId || !context.business || !supabase) return null;
-  return { businessId: context.business.id, supabase };
+  const { userId, context } = await getAuthenticatedContext();
+  if (!userId || !context.business) return null;
+  return { userId, businessId: context.business.id };
 }
 
 function errorRedirect(error: unknown, context: { businessId?: string; connectionId?: string; shopDomain?: string } = {}): never {
@@ -59,8 +58,10 @@ export async function connectShopifyAction(formData: FormData) {
       clientSecret: parsed.data.clientSecret,
     });
     const shop = await fetchShopifyShop({ shopDomain, accessToken: token.accessToken });
-    const { data, error } = await context.supabase.rpc("upsert_shopify_connection", {
+    const admin = createAdminClient();
+    const { data, error } = await admin.rpc("upsert_shopify_connection", {
       p_business_id: context.businessId,
+      p_actor: context.userId,
       p_shop_domain: shopDomain,
       p_client_id: parsed.data.clientId,
       p_client_secret: parsed.data.clientSecret,
@@ -73,6 +74,9 @@ export async function connectShopifyAction(formData: FormData) {
     });
     if (error) {
       if (error.code === "23505") throw new ShopifyError("SHOP_DOMAIN_ALREADY_CONNECTED");
+      if (error.message.includes("SHOP_DOMAIN_CHANGE_REQUIRES_DISCONNECT")) {
+        throw new ShopifyError("SHOP_DOMAIN_CHANGE_REQUIRES_DISCONNECT");
+      }
       throw new ShopifyError("SHOPIFY_UNAVAILABLE");
     }
     if (typeof data !== "string") throw new ShopifyError("SHOPIFY_RESPONSE_INVALID");
@@ -89,9 +93,10 @@ export async function connectShopifyAction(formData: FormData) {
       if (error instanceof ShopifyError && error.code === "SITE_URL_INVALID") throw error;
       throw new ShopifyError("SHOPIFY_WEBHOOKS_PARTIAL");
     }
-    const stored = await context.supabase.rpc("replace_shopify_webhook_subscriptions", {
+    const stored = await admin.rpc("replace_shopify_webhook_subscriptions", {
       p_connection_id: connectionId,
       p_business_id: context.businessId,
+      p_actor: context.userId,
       p_subscriptions: subscriptions,
     });
     if (stored.error || stored.data !== 5) throw new ShopifyError("SHOPIFY_WEBHOOKS_PARTIAL");
@@ -113,9 +118,11 @@ export async function testShopifyConnectionAction() {
   try {
     const { accessToken, credentials } = await getShopifyAccessToken(status.id);
     await fetchShopifyShop({ shopDomain: credentials.shop_domain, accessToken });
-    const { error } = await context.supabase.rpc("mark_shopify_connection_verified", {
+    const admin = createAdminClient();
+    const { error } = await admin.rpc("mark_shopify_connection_verified", {
       p_connection_id: status.id,
       p_business_id: context.businessId,
+      p_actor: context.userId,
       p_granted_scopes: credentials.granted_scopes,
     });
     if (error) throw new ShopifyError("SHOPIFY_UNAVAILABLE");
@@ -140,9 +147,11 @@ export async function verifyShopifyWebhooksAction() {
       accessToken,
       webhookUrl: getShopifyWebhookUrl(),
     });
-    const { data, error } = await context.supabase.rpc("replace_shopify_webhook_subscriptions", {
+    const admin = createAdminClient();
+    const { data, error } = await admin.rpc("replace_shopify_webhook_subscriptions", {
       p_connection_id: status.id,
       p_business_id: context.businessId,
+      p_actor: context.userId,
       p_subscriptions: subscriptions,
     });
     if (error || data !== 5) throw new ShopifyError("SHOPIFY_WEBHOOKS_PARTIAL");
@@ -179,9 +188,10 @@ export async function disconnectShopifyAction() {
       accessToken,
       subscriptionIds,
     });
-    const disconnected = await context.supabase.rpc("disconnect_shopify_connection", {
+    const disconnected = await admin.rpc("disconnect_shopify_connection", {
       p_connection_id: status.id,
       p_business_id: context.businessId,
+      p_actor: context.userId,
     });
     if (disconnected.error) throw new ShopifyError("SHOPIFY_UNAVAILABLE");
   } catch (error) {

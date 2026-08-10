@@ -7,6 +7,7 @@ import {
   parseShopifyWebhookTopic,
   reconcileShopifyWebhooks,
   verifyShopifyWebhookHmac,
+  verifyShopifyWebhookHmacWithRotation,
 } from "./webhooks";
 
 function jsonResponse(body: unknown) {
@@ -31,6 +32,46 @@ describe("webhooks Shopify", () => {
     const hmac = createHmac("sha256", "secret-test").update(original).digest("base64");
     expect(verifyShopifyWebhookHmac(original, "HMAC-invalide", "secret-test")).toBe(false);
     expect(verifyShopifyWebhookHmac('{"id":2}', hmac, "secret-test")).toBe(false);
+  });
+
+  it("accepte le secret courant pendant une rotation", () => {
+    const rawBody = '{"id":1}';
+    const hmac = createHmac("sha256", "current-secret").update(rawBody).digest("base64");
+    expect(verifyShopifyWebhookHmacWithRotation(rawBody, hmac, {
+      clientSecret: "current-secret",
+      previousClientSecret: "previous-secret",
+      previousClientSecretValidUntil: "2026-08-10T11:05:00.000Z",
+    }, Date.parse("2026-08-10T10:00:00.000Z"))).toBe(true);
+  });
+
+  it("accepte le secret précédent uniquement pendant les 65 minutes de grâce", () => {
+    const rawBody = '{"id":1}';
+    const hmac = createHmac("sha256", "previous-secret").update(rawBody).digest("base64");
+    expect(verifyShopifyWebhookHmacWithRotation(rawBody, hmac, {
+      clientSecret: "current-secret",
+      previousClientSecret: "previous-secret",
+      previousClientSecretValidUntil: "2026-08-10T11:05:00.000Z",
+    }, Date.parse("2026-08-10T11:04:59.000Z"))).toBe(true);
+  });
+
+  it("rejette le secret précédent expiré", () => {
+    const rawBody = '{"id":1}';
+    const hmac = createHmac("sha256", "previous-secret").update(rawBody).digest("base64");
+    expect(verifyShopifyWebhookHmacWithRotation(rawBody, hmac, {
+      clientSecret: "current-secret",
+      previousClientSecret: "previous-secret",
+      previousClientSecretValidUntil: "2026-08-10T11:05:00.000Z",
+    }, Date.parse("2026-08-10T11:05:00.000Z"))).toBe(false);
+  });
+
+  it("rejette un secret totalement inconnu", () => {
+    const rawBody = '{"id":1}';
+    const hmac = createHmac("sha256", "unknown-secret").update(rawBody).digest("base64");
+    expect(verifyShopifyWebhookHmacWithRotation(rawBody, hmac, {
+      clientSecret: "current-secret",
+      previousClientSecret: "previous-secret",
+      previousClientSecretValidUntil: "2026-08-10T11:05:00.000Z",
+    }, Date.parse("2026-08-10T10:00:00.000Z"))).toBe(false);
   });
 
   it("normalise les topics reçus dans les headers", () => {

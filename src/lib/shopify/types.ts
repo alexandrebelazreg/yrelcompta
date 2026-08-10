@@ -19,6 +19,8 @@ export interface ShopifyBackendCredentials {
   shop_domain: string;
   client_id: string;
   client_secret: string;
+  previous_client_secret: string | null;
+  previous_client_secret_valid_until: string | null;
   access_token: string;
   access_token_expires_at: string;
   granted_scopes: string[];

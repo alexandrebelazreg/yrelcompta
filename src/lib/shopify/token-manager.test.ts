@@ -12,6 +12,8 @@ const credentials: ShopifyBackendCredentials = {
   shop_domain: "maboutique.myshopify.com",
   client_id: "client_id_123",
   client_secret: "client_secret_123",
+  previous_client_secret: null,
+  previous_client_secret_valid_until: null,
   access_token: "cached_token_123",
   access_token_expires_at: new Date(now + 10 * 60 * 1000).toISOString(),
   granted_scopes: ["read_orders", "read_products"],

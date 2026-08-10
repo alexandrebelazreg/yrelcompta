@@ -24,8 +24,21 @@ describe("contrats de sécurité Shopify côté application", () => {
 
   it("compile le webhook en runtime Node et vérifie le body avant JSON.parse", () => {
     expect(route).toContain('export const runtime = "nodejs"');
-    expect(route).toContain("request.arrayBuffer()");
-    expect(route.indexOf("verifyShopifyWebhookHmac")).toBeLessThan(route.indexOf("JSON.parse"));
+    expect(route).toContain('request.headers.get("content-length")');
+    expect(route).toContain("request.body.getReader()");
+    expect(route).toContain("totalBytes > MAX_WEBHOOK_BYTES");
+    expect(route).not.toContain("request.arrayBuffer()");
+    expect(route.indexOf("verifyShopifyWebhookHmacWithRotation")).toBeLessThan(route.indexOf("JSON.parse"));
+  });
+
+  it("fait exécuter les mutations Shopify par le client admin avec l’acteur authentifié", () => {
+    expect(actions).not.toContain('import { createClient } from "@/lib/supabase/server"');
+    expect(actions).toContain("const { userId, context } = await getAuthenticatedContext()");
+    expect(actions.match(/createAdminClient\(\)/g)?.length).toBeGreaterThanOrEqual(4);
+    expect(actions.match(/p_actor: context\.userId/g)?.length).toBe(5);
+    for (const rpc of ["upsert_shopify_connection", "replace_shopify_webhook_subscriptions", "mark_shopify_connection_verified", "disconnect_shopify_connection"]) {
+      expect(actions).toContain(`admin.rpc("${rpc}"`);
+    }
   });
 
   it("ne transmet ni secret ni token dans l’état UI", () => {
@@ -34,6 +47,12 @@ describe("contrats de sécurité Shopify côté application", () => {
     expect(ui).not.toContain("access_token_vault_id");
     expect(ui).toContain('type="password"');
     expect(ui).not.toMatch(/defaultValue=\{[^}]*clientSecret/i);
+  });
+
+  it("rend la boutique immuable pendant un remplacement d’identifiants", () => {
+    expect(ui).toContain('id="replacementShopDomain" value={shopDomain} readOnly');
+    expect(ui).toContain('<input type="hidden" name="shopDomain" value={shopDomain}/>');
+    expect(actions).toContain("SHOP_DOMAIN_CHANGE_REQUIRES_DISCONNECT");
   });
 
   it("ne persiste que le hash et des identifiants minimaux du webhook", () => {

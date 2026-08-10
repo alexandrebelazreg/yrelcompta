@@ -12,6 +12,8 @@ create table public.shopify_connections (
   shop_domain text not null,
   client_id text not null,
   client_secret_vault_id uuid not null,
+  previous_client_secret_vault_id uuid,
+  previous_client_secret_valid_until timestamptz,
   access_token_vault_id uuid not null,
   access_token_expires_at timestamptz not null,
   shopify_shop_gid text not null,
@@ -37,6 +39,10 @@ create table public.shopify_connections (
   constraint shopify_connections_scopes check (
     array_position(granted_scopes, null) is null
     and cardinality(granted_scopes) <= 100
+  ),
+  constraint shopify_connections_previous_secret_pair check (
+    (previous_client_secret_vault_id is null and previous_client_secret_valid_until is null)
+    or (previous_client_secret_vault_id is not null and previous_client_secret_valid_until is not null)
   ),
   constraint shopify_connections_error_code check (
     last_error_code is null or last_error_code ~ '^[A-Z0-9_]{2,80}$'
@@ -168,8 +174,36 @@ $$;
 revoke all on function public.get_shopify_connection_status(uuid) from public, anon;
 grant execute on function public.get_shopify_connection_status(uuid) to authenticated;
 
+create function public.assert_shopify_actor_manager(
+  p_business_id uuid,
+  p_actor uuid
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if p_actor is null or not exists (
+    select 1
+    from public.business_members
+    where business_id = p_business_id
+      and user_id = p_actor
+      and role in ('owner', 'member')
+  ) then
+    raise exception 'shopify business access denied' using errcode = '42501';
+  end if;
+
+  return p_actor;
+end
+$$;
+
+revoke all on function public.assert_shopify_actor_manager(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.assert_shopify_actor_manager(uuid, uuid) to service_role;
+
 create function public.upsert_shopify_connection(
   p_business_id uuid,
+  p_actor uuid,
   p_shop_domain text,
   p_client_id text,
   p_client_secret text,
@@ -186,7 +220,7 @@ security definer
 set search_path = ''
 as $$
 declare
-  actor uuid := public.assert_expense_manager(p_business_id);
+  actor uuid := public.assert_shopify_actor_manager(p_business_id, p_actor);
   existing public.shopify_connections;
   connection_id uuid := gen_random_uuid();
   client_secret_id uuid;
@@ -208,6 +242,15 @@ begin
     raise exception 'invalid shopify connection' using errcode = '22023';
   end if;
 
+  select * into existing
+  from public.shopify_connections
+  where business_id = p_business_id
+  for update;
+
+  if found and p_shop_domain <> existing.shop_domain then
+    raise exception 'SHOP_DOMAIN_CHANGE_REQUIRES_DISCONNECT' using errcode = '22023';
+  end if;
+
   if exists (
     select 1 from public.shopify_connections
     where shop_domain = p_shop_domain and business_id <> p_business_id
@@ -215,22 +258,28 @@ begin
     raise exception 'shopify domain already connected' using errcode = '23505';
   end if;
 
-  select * into existing
-  from public.shopify_connections
-  where business_id = p_business_id
-  for update;
-
   if found then
     connection_id := existing.id;
-    client_secret_id := existing.client_secret_vault_id;
     access_token_id := existing.access_token_vault_id;
-    perform vault.update_secret(client_secret_id, p_client_secret);
+
+    if existing.previous_client_secret_vault_id is not null then
+      delete from vault.secrets
+      where id = existing.previous_client_secret_vault_id;
+    end if;
+
+    client_secret_id := vault.create_secret(
+      p_client_secret,
+      'shopify-client-secret-' || connection_id::text || '-' || gen_random_uuid()::text,
+      'Client Secret Shopify courant chiffré pour une connexion YrelCompta'
+    );
     perform vault.update_secret(access_token_id, p_access_token);
     audit_action := 'shopify_credentials_rotated';
 
     update public.shopify_connections
-    set shop_domain = p_shop_domain,
-        client_id = btrim(p_client_id),
+    set client_id = btrim(p_client_id),
+        client_secret_vault_id = client_secret_id,
+        previous_client_secret_vault_id = existing.client_secret_vault_id,
+        previous_client_secret_valid_until = now() + interval '65 minutes',
         access_token_expires_at = p_access_token_expires_at,
         shopify_shop_gid = p_shopify_shop_gid,
         shop_name = btrim(p_shop_name),
@@ -280,12 +329,13 @@ begin
 end
 $$;
 
-revoke all on function public.upsert_shopify_connection(uuid, text, text, text, text, timestamptz, text, text, text, text[]) from public, anon;
-grant execute on function public.upsert_shopify_connection(uuid, text, text, text, text, timestamptz, text, text, text, text[]) to authenticated;
+revoke all on function public.upsert_shopify_connection(uuid, uuid, text, text, text, text, timestamptz, text, text, text, text[]) from public, anon, authenticated;
+grant execute on function public.upsert_shopify_connection(uuid, uuid, text, text, text, text, timestamptz, text, text, text, text[]) to service_role;
 
 create function public.replace_shopify_webhook_subscriptions(
   p_connection_id uuid,
   p_business_id uuid,
+  p_actor uuid,
   p_subscriptions jsonb
 )
 returns integer
@@ -294,7 +344,7 @@ security definer
 set search_path = ''
 as $$
 declare
-  actor uuid := public.assert_expense_manager(p_business_id);
+  actor uuid := public.assert_shopify_actor_manager(p_business_id, p_actor);
   item jsonb;
   item_topic text;
   item_gid text;
@@ -361,12 +411,13 @@ begin
 end
 $$;
 
-revoke all on function public.replace_shopify_webhook_subscriptions(uuid, uuid, jsonb) from public, anon;
-grant execute on function public.replace_shopify_webhook_subscriptions(uuid, uuid, jsonb) to authenticated;
+revoke all on function public.replace_shopify_webhook_subscriptions(uuid, uuid, uuid, jsonb) from public, anon, authenticated;
+grant execute on function public.replace_shopify_webhook_subscriptions(uuid, uuid, uuid, jsonb) to service_role;
 
 create function public.mark_shopify_connection_verified(
   p_connection_id uuid,
   p_business_id uuid,
+  p_actor uuid,
   p_granted_scopes text[]
 )
 returns void
@@ -375,7 +426,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  perform public.assert_expense_manager(p_business_id);
+  perform public.assert_shopify_actor_manager(p_business_id, p_actor);
 
   if not (p_granted_scopes @> array['read_orders', 'read_products']::text[]) then
     raise exception 'missing required shopify scopes' using errcode = '22023';
@@ -392,12 +443,13 @@ begin
 end
 $$;
 
-revoke all on function public.mark_shopify_connection_verified(uuid, uuid, text[]) from public, anon;
-grant execute on function public.mark_shopify_connection_verified(uuid, uuid, text[]) to authenticated;
+revoke all on function public.mark_shopify_connection_verified(uuid, uuid, uuid, text[]) from public, anon, authenticated;
+grant execute on function public.mark_shopify_connection_verified(uuid, uuid, uuid, text[]) to service_role;
 
 create function public.disconnect_shopify_connection(
   p_connection_id uuid,
-  p_business_id uuid
+  p_business_id uuid,
+  p_actor uuid
 )
 returns void
 language plpgsql
@@ -405,7 +457,7 @@ security definer
 set search_path = ''
 as $$
 declare
-  actor uuid := public.assert_expense_manager(p_business_id);
+  actor uuid := public.assert_shopify_actor_manager(p_business_id, p_actor);
   connection public.shopify_connections;
 begin
   select * into connection
@@ -420,7 +472,11 @@ begin
   where id = p_connection_id and business_id = p_business_id;
 
   delete from vault.secrets
-  where id in (connection.client_secret_vault_id, connection.access_token_vault_id);
+  where id in (
+    connection.client_secret_vault_id,
+    connection.previous_client_secret_vault_id,
+    connection.access_token_vault_id
+  );
 
   insert into public.audit_logs(
     business_id, user_id, action_type, entity_name, entity_id, old_data
@@ -435,8 +491,8 @@ begin
 end
 $$;
 
-revoke all on function public.disconnect_shopify_connection(uuid, uuid) from public, anon;
-grant execute on function public.disconnect_shopify_connection(uuid, uuid) to authenticated;
+revoke all on function public.disconnect_shopify_connection(uuid, uuid, uuid) from public, anon, authenticated;
+grant execute on function public.disconnect_shopify_connection(uuid, uuid, uuid) to service_role;
 
 create function public.get_shopify_backend_credentials(p_connection_id uuid)
 returns table (
@@ -445,6 +501,8 @@ returns table (
   shop_domain text,
   client_id text,
   client_secret text,
+  previous_client_secret text,
+  previous_client_secret_valid_until timestamptz,
   access_token text,
   access_token_expires_at timestamptz,
   granted_scopes text[]
@@ -460,11 +518,14 @@ as $$
     c.shop_domain,
     c.client_id,
     cs.decrypted_secret,
+    pcs.decrypted_secret,
+    c.previous_client_secret_valid_until,
     at.decrypted_secret,
     c.access_token_expires_at,
     c.granted_scopes
   from public.shopify_connections c
   join vault.decrypted_secrets cs on cs.id = c.client_secret_vault_id
+  left join vault.decrypted_secrets pcs on pcs.id = c.previous_client_secret_vault_id
   join vault.decrypted_secrets at on at.id = c.access_token_vault_id
   where c.id = p_connection_id
 $$;
@@ -476,6 +537,8 @@ returns table (
   shop_domain text,
   client_id text,
   client_secret text,
+  previous_client_secret text,
+  previous_client_secret_valid_until timestamptz,
   access_token text,
   access_token_expires_at timestamptz,
   granted_scopes text[]

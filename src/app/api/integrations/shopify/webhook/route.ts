@@ -6,16 +6,43 @@ import {
   extractShopifyResourceIds,
   hashShopifyWebhookPayload,
   parseShopifyWebhookTopic,
-  verifyShopifyWebhookHmac,
+  verifyShopifyWebhookHmacWithRotation,
 } from "@/lib/shopify/webhooks";
 
 export const runtime = "nodejs";
 
 const MAX_WEBHOOK_BYTES = 5 * 1024 * 1024;
 
+async function readRawBody(request: Request): Promise<Buffer | null> {
+  if (!request.body) return Buffer.alloc(0);
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    totalBytes += value.byteLength;
+    if (totalBytes > MAX_WEBHOOK_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)), totalBytes);
+}
+
 export async function POST(request: Request): Promise<Response> {
-  const rawBody = Buffer.from(await request.arrayBuffer());
-  if (rawBody.length > MAX_WEBHOOK_BYTES) return new Response(null, { status: 413 });
+  const contentLength = request.headers.get("content-length");
+  if (contentLength) {
+    if (!/^\d+$/.test(contentLength)) return new Response(null, { status: 400 });
+    const declaredBytes = Number(contentLength);
+    if (!Number.isSafeInteger(declaredBytes)) return new Response(null, { status: 400 });
+    if (declaredBytes > MAX_WEBHOOK_BYTES) return new Response(null, { status: 413 });
+  }
+
+  const rawBody = await readRawBody(request);
+  if (!rawBody) return new Response(null, { status: 413 });
 
   const hmac = request.headers.get("x-shopify-hmac-sha256");
   const suppliedDomain = request.headers.get("x-shopify-shop-domain");
@@ -34,7 +61,11 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const credentials = await getShopifyBackendCredentialsByDomain(shopDomain);
-    if (!credentials || !verifyShopifyWebhookHmac(rawBody, hmac, credentials.client_secret)) {
+    if (!credentials || !verifyShopifyWebhookHmacWithRotation(rawBody, hmac, {
+      clientSecret: credentials.client_secret,
+      previousClientSecret: credentials.previous_client_secret,
+      previousClientSecretValidUntil: credentials.previous_client_secret_valid_until,
+    })) {
       return new Response(null, { status: 401 });
     }
 

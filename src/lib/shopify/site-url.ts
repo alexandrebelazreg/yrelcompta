@@ -11,8 +11,10 @@ export function getShopifyWebhookUrl(siteUrl = process.env.NEXT_PUBLIC_SITE_URL)
     throw new ShopifyError("SITE_URL_INVALID");
   }
 
-  const local = url.hostname === "localhost" && url.protocol === "http:";
-  if ((!local && url.protocol !== "https:")
+  const production = process.env.NODE_ENV === "production";
+  const localDevelopment = !production && url.hostname === "localhost" && url.protocol === "http:";
+  if ((production && (url.protocol !== "https:" || url.hostname === "localhost"))
+    || (!production && !localDevelopment && url.protocol !== "https:")
     || url.username
     || url.password
     || (url.pathname !== "/" && url.pathname !== "")
