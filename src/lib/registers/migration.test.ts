@@ -22,6 +22,7 @@ describe("migration registres et déclarations", () => {
       migrationName,
       "20260807220000_invoicing_documents.sql",
       "20260808120000_fiscal_social_rules.sql",
+      "20260810120000_recurring_expense_automation.sql",
     ]);
   });
 

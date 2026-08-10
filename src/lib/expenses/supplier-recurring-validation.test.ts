@@ -56,5 +56,25 @@ describe("validation des modèles récurrents", () => {
       isActive: true,
     });
     expect(parsed.subcategory).toBe("Comptabilité");
+    expect(parsed.autoGenerate).toBe(true);
+  });
+
+  it("conserve la désactivation explicite de la génération automatique", () => {
+    const parsed = recurringSchema.parse({
+      supplierId: "",
+      category: "software",
+      subcategory: "",
+      nature: "operating",
+      costBehavior: "fixed",
+      description: "Abonnement manuel",
+      estimatedAmount: "15,00",
+      professionalShare: "100",
+      frequency: "monthly",
+      nextDueOn: "2026-08-01",
+      notes: "",
+      isActive: true,
+      autoGenerate: false,
+    });
+    expect(parsed.autoGenerate).toBe(false);
   });
 });

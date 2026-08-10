@@ -17,9 +17,10 @@ export interface Expense {
   category: ExpenseCategory; subcategory: string | null; nature: ExpenseNature; cost_behavior: ExpenseCostBehavior;
   description: string; external_reference: string | null; total_amount_cents: number; professional_share_basis_points: number;
   business_amount_cents: number; notes: string | null; status: ExpenseStatus; validated_at: string | null;
+  recurring_template_id: string | null; recurring_due_on: string | null;
   cancelled_at: string | null; cancellation_reason: string | null; suppliers: Pick<Supplier,"id"|"name"> | null;
   expense_payments: ExpensePayment[]; expense_documents: ExpenseDocumentLink[];
 }
-export interface RecurringExpenseTemplate { id: string; business_id: string; supplier_id: string | null; category: ExpenseCategory; subcategory: string | null; nature: ExpenseNature; cost_behavior: ExpenseCostBehavior; description: string; estimated_amount_cents: number; professional_share_basis_points: number; frequency: RecurrenceFrequency; next_due_on: string; last_generated_on: string | null; notes: string | null; is_active: boolean; suppliers: Pick<Supplier,"id"|"name"> | null; }
+export interface RecurringExpenseTemplate { id: string; business_id: string; supplier_id: string | null; category: ExpenseCategory; subcategory: string | null; nature: ExpenseNature; cost_behavior: ExpenseCostBehavior; description: string; estimated_amount_cents: number; professional_share_basis_points: number; frequency: RecurrenceFrequency; next_due_on: string; last_generated_on: string | null; notes: string | null; is_active: boolean; auto_generate: boolean; suppliers: Pick<Supplier,"id"|"name"> | null; }
 export interface ExpenseFinancialSummary { totalCents: number; businessCents: number; grossPaidCents: number; businessPaidCents: number; grossRefundedCents: number; businessRefundedCents: number; netCashCents: number; netBusinessCents: number; remainingCents: number; }
 export interface ExpenseTotals extends ExpenseFinancialSummary { validatedExpensesCents: number; missingDocuments: number; }
