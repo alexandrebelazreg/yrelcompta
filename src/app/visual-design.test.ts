@@ -11,6 +11,12 @@ const sales = readFileSync(join(root, "src/app/(app)/ventes/page.tsx"), "utf8");
 const expenses = readFileSync(join(root, "src/app/(app)/depenses/page.tsx"), "utf8");
 const products = readFileSync(join(root, "src/app/(app)/produits/page.tsx"), "utf8");
 const documents = readFileSync(join(root, "src/app/(app)/documents/page.tsx"), "utf8");
+const materials = readFileSync(join(root, "src/app/(app)/produits/matieres/page.tsx"), "utf8");
+const suppliers = readFileSync(join(root, "src/app/(app)/depenses/fournisseurs/page.tsx"), "utf8");
+const recurrences = readFileSync(join(root, "src/app/(app)/depenses/recurrences/page.tsx"), "utf8");
+const recurringForm = readFileSync(join(root, "src/components/expenses/recurring-form.tsx"), "utf8");
+const dashboardQueries = readFileSync(join(root, "src/lib/dashboard/queries.ts"), "utf8");
+const home = readFileSync(join(root, "src/app/page.tsx"), "utf8");
 
 describe("identité visuelle Poudré chic", () => {
   it("déclare la palette sémantique et les dimensions communes", () => {
@@ -91,5 +97,65 @@ describe("identité visuelle Poudré chic", () => {
     expect(documents).toContain('href={`/factures/${document.id}`}');
     expect(documents).toContain('href={`/depenses/${document.expenseId}`}');
     expect(documents).not.toContain('className="document-grid"');
+  });
+
+  it("compacte les matières sans perdre leurs formulaires ni l’archivage conditionnel", () => {
+    expect(materials).toContain('className="register-table compact-table management-table material-table"');
+    for (const heading of ["Matière", "Référence", "Unité", "Quantité du lot", "Coût du lot", "Coût indicatif / unité", "Fournisseur", "État", "Actions"]) {
+      expect(materials).toContain(`<th>${heading}</th>`);
+    }
+    expect(materials).toContain("<MaterialForm material={material} suppliers={suppliers}/>");
+    expect(materials).toContain("material.is_active && <form action={archiveMaterialAction}");
+    expect(materials).not.toContain('className="management-list"');
+  });
+
+  it("compacte les fournisseurs en conservant recherche, modification et archivage", () => {
+    expect(suppliers).toContain('className="register-table compact-table management-table supplier-table"');
+    for (const heading of ["Fournisseur", "État", "Dépenses", "Total validé", "Dernière dépense", "Localisation", "Immatriculation", "Actions"]) {
+      expect(suppliers).toContain(`<th>${heading}</th>`);
+    }
+    expect(suppliers).toContain('name="recherche"');
+    expect(suppliers).toContain("<SupplierForm supplier={supplier}/>");
+    expect(suppliers).toContain("supplier.is_active && <form action={archiveSupplierAction}");
+    expect(suppliers).not.toContain('className="management-list"');
+  });
+
+  it("compacte les charges récurrentes et conserve les actions manuelles", () => {
+    expect(recurrences).toContain('className="register-table compact-table management-table recurring-table"');
+    for (const heading of ["Charge", "Fournisseur", "Fréquence", "Montant prévu", "Prochaine échéance", "Automatique", "État", "Actions"]) {
+      expect(recurrences).toContain(`<th>${heading}</th>`);
+    }
+    expect(recurrences).toContain("<RecurringForm template={template} suppliers={suppliers}/>");
+    expect(recurrences).toContain("template.is_active && <>");
+    expect(recurrences).toContain("createExpenseFromTemplateAction");
+    expect(recurrences).toContain("Générer maintenant");
+    expect(recurrences).toContain('name="recurringDueOn" value={template.next_due_on}');
+    expect(recurrences).toContain('name="purchasedOn" type="date" defaultValue={today} required');
+    expect(recurrences).toContain("archiveRecurringAction");
+    expect(recurrences).toContain('template.auto_generate ? "Auto" : "Manuel"');
+    expect(recurrences).not.toContain('className="management-list"');
+  });
+
+  it("rend la création automatique accessible dans le formulaire", () => {
+    expect(recurringForm).toContain('name="autoGenerate"');
+    expect(recurringForm).toContain("template?.auto_generate ?? true");
+    expect(recurringForm).toContain("Création automatique");
+    expect(recurringForm).toContain("À l’échéance, YrelCompta crée automatiquement un brouillon de dépense. Vous gardez la validation définitive.");
+  });
+
+  it("signale les brouillons récurrents dans les dépenses et le tableau de bord", () => {
+    expect(expenses).toContain("expense.recurring_template_id");
+    expect(expenses).toContain("Récurrente");
+    expect(dashboard).toContain("Charges récurrentes à vérifier");
+    expect(dashboard).toContain("recurringDraftCount > 0");
+    expect(dashboardQueries).toContain('.eq("status", "draft")');
+    expect(dashboardQueries).toContain('.not("recurring_template_id", "is", null)');
+  });
+
+  it("présente les fonctionnalités publiques comme disponibles", () => {
+    expect(home).toContain("Les essentiels réunis au même endroit");
+    for (const feature of ["Ventes", "Dépenses", "Documents", "Registres"]) expect(home).toContain(`["${feature}",`);
+    expect(home).not.toContain("Bientôt dans votre espace");
+    expect(home).not.toContain("Fonctionnalité à venir");
   });
 });

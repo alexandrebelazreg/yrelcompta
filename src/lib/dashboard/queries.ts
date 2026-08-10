@@ -202,3 +202,21 @@ export async function getDashboardData(businessId: string, month: DashboardMonth
     throw new Error(FAILURE_CODE);
   }
 }
+
+export async function getRecurringDraftReviewCount(businessId: string): Promise<number> {
+  const supabase = await createClient();
+  if (!supabase) throw new Error(FAILURE_CODE);
+
+  const { count, error } = await supabase.from("expenses")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", businessId)
+    .eq("status", "draft")
+    .not("recurring_template_id", "is", null);
+
+  if (error) {
+    logLoadError(error.code);
+    throw new Error(FAILURE_CODE);
+  }
+
+  return count ?? 0;
+}

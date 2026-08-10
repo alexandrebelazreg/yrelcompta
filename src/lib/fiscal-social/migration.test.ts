@@ -15,9 +15,12 @@ function functionSql(name: string, nextMarker: string): string {
 }
 
 describe("migration des règles fiscales et sociales", () => {
-  it("est l’unique migration ajoutée après la facturation", () => {
+  it("précède la migration d’automatisation des récurrences", () => {
     const migrations = readdirSync(join(root, "supabase/migrations")).filter((name) => name.endsWith(".sql")).sort();
-    expect(migrations.filter((name) => name > "20260807220000_invoicing_documents.sql")).toEqual([migrationName]);
+    expect(migrations.filter((name) => name > "20260807220000_invoicing_documents.sql")).toEqual([
+      migrationName,
+      "20260810120000_recurring_expense_automation.sql",
+    ]);
   });
 
   it("crée des règles globales versionnées et les valeurs officielles 2026", () => {

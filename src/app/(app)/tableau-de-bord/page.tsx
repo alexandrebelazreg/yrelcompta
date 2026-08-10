@@ -5,7 +5,7 @@ import { MetricCard } from "@/components/ui/metric-card";
 import { getAuthenticatedContext } from "@/lib/auth/context";
 import { calculateDashboardMetrics, resolveDashboardMonth } from "@/lib/dashboard/calculations";
 import { fixedCostCoverageMessage } from "@/lib/dashboard/presentation";
-import { getDashboardData } from "@/lib/dashboard/queries";
+import { getDashboardData, getRecurringDraftReviewCount } from "@/lib/dashboard/queries";
 import { formatEuroCents } from "@/lib/sales/calculations";
 import { saleChannelLabels } from "@/lib/sales/labels";
 import { formatFrenchDate } from "@/lib/utils/format";
@@ -45,7 +45,7 @@ function DashboardSectionHeading({ id, title, help, action }: { id: string; titl
   return <div className="section-heading dashboard-section-heading"><div className="info-line"><h2 id={id}>{title}</h2>{help && <InfoTip label={`En savoir plus sur ${title}`}>{help}</InfoTip>}</div>{action}</div>;
 }
 
-function DashboardContent({ metrics, recentSales }: { metrics: DashboardMetrics; recentSales: DashboardRecentSale[] }) {
+function DashboardContent({ metrics, recentSales, recurringDraftCount }: { metrics: DashboardMetrics; recentSales: DashboardRecentSale[]; recurringDraftCount: number }) {
   const profitabilityAvailable = metrics.profitability.completeCount > 0;
   const referenceAvailable = metrics.reference.saleCount > 0;
   const breakEvenReason = metrics.breakEven.unavailableReason
@@ -53,6 +53,7 @@ function DashboardContent({ metrics, recentSales }: { metrics: DashboardMetrics;
     : "Calculé à partir de la marge pondérée des 90 derniers jours du mois sélectionné.";
 
   return <>
+    {recurringDraftCount > 0 && <aside className="recurring-draft-notice"><div><span>Charges récurrentes à vérifier</span><strong>{recurringDraftCount}</strong></div><Link className="secondary-link" href="/depenses?statut=draft">Voir les dépenses</Link></aside>}
     <section className="dashboard-section" aria-labelledby="cash-heading">
       <DashboardSectionHeading id="cash-heading" title="Trésorerie du mois" help={<>Détail : {formatEuroCents(metrics.cash.grossCollectedCents)} encaissés, {formatEuroCents(metrics.cash.customerRefundedCents)} remboursés aux clientes, {formatEuroCents(metrics.cash.expensesPaidCents)} payés et {formatEuroCents(metrics.cash.expenseRefundedCents)} remboursés par les fournisseurs.</>} />
       <div className="metric-grid">
@@ -122,15 +123,18 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   if (!context.business) {
     content = <EmptyState title="Entreprise non configurée" description="Terminez la configuration de votre entreprise pour afficher ses indicateurs." />;
   } else {
-    let dashboard: { metrics: DashboardMetrics; recentSales: DashboardRecentSale[] } | null = null;
+    let dashboard: { metrics: DashboardMetrics; recentSales: DashboardRecentSale[]; recurringDraftCount: number } | null = null;
     try {
-      const source = await getDashboardData(context.business.id, month);
-      dashboard = { metrics: calculateDashboardMetrics(source), recentSales: source.recentSales };
+      const [source, recurringDraftCount] = await Promise.all([
+        getDashboardData(context.business.id, month),
+        getRecurringDraftReviewCount(context.business.id),
+      ]);
+      dashboard = { metrics: calculateDashboardMetrics(source), recentSales: source.recentSales, recurringDraftCount };
     } catch {
       dashboard = null;
     }
     content = dashboard
-      ? <DashboardContent metrics={dashboard.metrics} recentSales={dashboard.recentSales} />
+      ? <DashboardContent metrics={dashboard.metrics} recentSales={dashboard.recentSales} recurringDraftCount={dashboard.recurringDraftCount} />
       : <div className="dashboard-error" role="alert"><h2>Données indisponibles</h2><p>Le tableau de bord n’a pas pu être chargé. Aucun indicateur partiel n’est affiché. Réessayez dans quelques instants.</p></div>;
   }
 
