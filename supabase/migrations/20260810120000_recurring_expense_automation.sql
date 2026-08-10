@@ -70,7 +70,8 @@ create function public.generate_recurring_expense_occurrence(
   p_business_id uuid,
   p_source text,
   p_actor uuid,
-  p_purchased_on date
+  p_purchased_on date,
+  p_recurring_due_on date
 )
 returns uuid
 language plpgsql
@@ -114,22 +115,31 @@ begin
     raise exception 'automatic generation is disabled' using errcode = '55000';
   end if;
 
-  if p_source = 'recurring_manual' then
-    select id
-    into expense_id
-    from public.expenses
-    where business_id = p_business_id
-      and recurring_template_id = p_template_id
-      and purchased_on = p_purchased_on
-    order by recurring_due_on desc
-    limit 1;
-
-    if expense_id is not null then
-      return expense_id;
-    end if;
+  if p_recurring_due_on is null then
+    raise exception 'recurring due date is required' using errcode = '22023';
   end if;
 
-  occurrence_due_on := template.next_due_on;
+  occurrence_due_on := p_recurring_due_on;
+
+  if p_source = 'recurring_manual' then
+    if occurrence_due_on is distinct from template.next_due_on then
+      select id
+      into expense_id
+      from public.expenses
+      where business_id = p_business_id
+        and recurring_template_id = p_template_id
+        and recurring_due_on = occurrence_due_on;
+
+      if expense_id is not null then
+        return expense_id;
+      end if;
+
+      raise exception 'recurring occurrence is stale' using errcode = '55000';
+    end if;
+  elsif occurrence_due_on is distinct from template.next_due_on then
+    raise exception 'automatic recurring occurrence is stale' using errcode = '55000';
+  end if;
+
   effective_purchased_on := case
     when p_source = 'recurring_auto' then occurrence_due_on
     else coalesce(p_purchased_on, occurrence_due_on)
@@ -202,7 +212,8 @@ begin
   set last_generated_on = effective_purchased_on,
       next_due_on = calculated_next_due_on
   where id = p_template_id
-    and business_id = p_business_id;
+    and business_id = p_business_id
+    and next_due_on = occurrence_due_on;
 
   if inserted then
     insert into public.audit_logs(
@@ -230,9 +241,9 @@ begin
 end
 $$;
 
-revoke all on function public.generate_recurring_expense_occurrence(uuid, uuid, text, uuid, date) from public;
-revoke all on function public.generate_recurring_expense_occurrence(uuid, uuid, text, uuid, date) from anon;
-revoke all on function public.generate_recurring_expense_occurrence(uuid, uuid, text, uuid, date) from authenticated;
+revoke all on function public.generate_recurring_expense_occurrence(uuid, uuid, text, uuid, date, date) from public;
+revoke all on function public.generate_recurring_expense_occurrence(uuid, uuid, text, uuid, date, date) from anon;
+revoke all on function public.generate_recurring_expense_occurrence(uuid, uuid, text, uuid, date, date) from authenticated;
 
 create function public.generate_due_recurring_expenses()
 returns integer
@@ -276,6 +287,7 @@ begin
         candidate.business_id,
         'recurring_auto',
         null,
+        current_due_on,
         current_due_on
       );
       generated_for_template := generated_for_template + 1;
@@ -303,13 +315,27 @@ set search_path = ''
 as $$
 declare
   actor uuid := public.assert_expense_manager(p_business_id);
+  expected_due_on date;
 begin
+  select next_due_on
+  into expected_due_on
+  from public.recurring_expense_templates
+  where id = p_template_id
+    and business_id = p_business_id
+    and is_active = true
+  for update;
+
+  if not found then
+    raise exception 'active template not found' using errcode = 'P0002';
+  end if;
+
   return public.generate_recurring_expense_occurrence(
     p_template_id,
     p_business_id,
     'recurring_manual',
     actor,
-    p_purchased_on
+    p_purchased_on,
+    expected_due_on
   );
 end
 $$;
@@ -317,6 +343,35 @@ $$;
 revoke all on function public.create_expense_from_recurring_template(uuid, uuid, date) from public;
 revoke all on function public.create_expense_from_recurring_template(uuid, uuid, date) from anon;
 grant execute on function public.create_expense_from_recurring_template(uuid, uuid, date) to authenticated;
+
+create function public.create_expense_from_recurring_template(
+  p_template_id uuid,
+  p_business_id uuid,
+  p_purchased_on date,
+  p_recurring_due_on date
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  actor uuid := public.assert_expense_manager(p_business_id);
+begin
+  return public.generate_recurring_expense_occurrence(
+    p_template_id,
+    p_business_id,
+    'recurring_manual',
+    actor,
+    p_purchased_on,
+    p_recurring_due_on
+  );
+end
+$$;
+
+revoke all on function public.create_expense_from_recurring_template(uuid, uuid, date, date) from public;
+revoke all on function public.create_expense_from_recurring_template(uuid, uuid, date, date) from anon;
+grant execute on function public.create_expense_from_recurring_template(uuid, uuid, date, date) to authenticated;
 
 create function public.create_recurring_expense_template(
   p_business_id uuid,

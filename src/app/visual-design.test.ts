@@ -129,6 +129,7 @@ describe("identité visuelle Poudré chic", () => {
     expect(recurrences).toContain("template.is_active && <>");
     expect(recurrences).toContain("createExpenseFromTemplateAction");
     expect(recurrences).toContain("Générer maintenant");
+    expect(recurrences).toContain('name="recurringDueOn" value={template.next_due_on}');
     expect(recurrences).toContain('name="purchasedOn" type="date" defaultValue={today} required');
     expect(recurrences).toContain("archiveRecurringAction");
     expect(recurrences).toContain('template.auto_generate ? "Auto" : "Manuel"');

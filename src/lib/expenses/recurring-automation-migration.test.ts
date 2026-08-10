@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 const migrationPath = join(process.cwd(), "supabase/migrations/20260810120000_recurring_expense_automation.sql");
 const migration = readFileSync(migrationPath, "utf8");
 const sql = migration.replace(/\s+/g, " ").trim();
+const actions = readFileSync(join(process.cwd(), "src/lib/expenses/actions.ts"), "utf8");
+const recurringPage = readFileSync(join(process.cwd(), "src/app/(app)/depenses/recurrences/page.tsx"), "utf8");
 
 describe("migration d’automatisation des charges récurrentes", () => {
   it("crée un brouillon pour chaque modèle automatique dû", () => {
@@ -66,21 +68,51 @@ describe("migration d’automatisation des charges récurrentes", () => {
   });
 
   it("interdit les fonctions internes à authenticated", () => {
-    expect(sql).toContain("revoke all on function public.generate_recurring_expense_occurrence(uuid, uuid, text, uuid, date) from authenticated");
+    expect(sql).toContain("revoke all on function public.generate_recurring_expense_occurrence(uuid, uuid, text, uuid, date, date) from authenticated");
     expect(sql).toContain("revoke all on function public.generate_due_recurring_expenses() from authenticated");
     expect(sql).not.toContain("grant execute on function public.generate_due_recurring_expenses() to authenticated");
   });
 
-  it("conserve la génération manuelle contrôlée et idempotente", () => {
+  it("expose la nouvelle RPC manuelle contrôlée tout en conservant la surcharge historique", () => {
     expect(sql).toContain("create or replace function public.create_expense_from_recurring_template");
-    expect(sql).toContain("'recurring_manual', actor, p_purchased_on");
-    expect(sql).toContain("and purchased_on = p_purchased_on order by recurring_due_on desc limit 1");
+    expect(sql).toContain("p_purchased_on date, p_recurring_due_on date");
+    expect(sql).toContain("'recurring_manual', actor, p_purchased_on, p_recurring_due_on");
     expect(sql).toContain("grant execute on function public.create_expense_from_recurring_template(uuid, uuid, date) to authenticated");
+    expect(sql).toContain("grant execute on function public.create_expense_from_recurring_template(uuid, uuid, date, date) to authenticated");
+    expect(sql).toContain("actor uuid := public.assert_expense_manager(p_business_id)");
+  });
+
+  it("transmet séparément l’échéance canonique et la date d’achat modifiable", () => {
+    expect(recurringPage).toContain('name="recurringDueOn" value={template.next_due_on}');
+    expect(recurringPage).toContain('name="purchasedOn" type="date" defaultValue={today} required');
+    expect(actions).toContain('value(f,"recurringDueOn")');
+    expect(actions).toContain("p_purchased_on:purchased.data,p_recurring_due_on:recurringDue.data");
+  });
+
+  it("identifie une occurrence uniquement par business, modèle et échéance", () => {
+    expect(sql).toContain("and recurring_template_id = p_template_id and recurring_due_on = occurrence_due_on");
+    expect(sql).not.toContain("and purchased_on = p_purchased_on");
+  });
+
+  it("retourne l’occurrence exacte après une double soumission sans avancer à nouveau", () => {
+    expect(sql).toContain("if occurrence_due_on is distinct from template.next_due_on then select id into expense_id");
+    expect(sql).toContain("if expense_id is not null then return expense_id; end if; raise exception 'recurring occurrence is stale'");
+    expect(sql).toContain("and next_due_on = occurrence_due_on");
+  });
+
+  it("refuse explicitement une occurrence obsolète absente", () => {
+    expect(sql).toContain("raise exception 'recurring occurrence is stale' using errcode = '55000'");
+    expect(actions).toContain("Cette échéance a changé. Actualisez la page avant de générer le brouillon.");
+  });
+
+  it("autorise deux échéances distinctes avec la même date d’achat", () => {
+    expect(sql).toContain("create unique index expenses_recurring_occurrence_key on public.expenses(business_id, recurring_template_id, recurring_due_on)");
+    expect(sql).not.toMatch(/unique[^;]+purchased_on/i);
   });
 
   it("journalise explicitement la génération automatique sans faux utilisateur", () => {
     expect(sql).toContain("'source', p_source, 'expense_id', expense_id, 'recurring_due_on', occurrence_due_on");
-    expect(sql).toContain("'recurring_auto', null, current_due_on");
+    expect(sql).toContain("'recurring_auto', null, current_due_on, current_due_on");
   });
 
   it("protège les champs de récurrence des dépenses validées", () => {
