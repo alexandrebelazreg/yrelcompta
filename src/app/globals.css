@@ -600,6 +600,34 @@ footer { color: var(--muted); padding: 2rem; text-align: center; }
 .missing-documents .compact-table a { border-top: 0; display: inline; padding: 0; }
 .missing-document-table { min-width: 620px; }
 
+.management-table { min-width: 1040px; }
+.management-table th,
+.management-table td { padding-inline: .55rem; }
+.material-table { min-width: 1120px; }
+.supplier-table { min-width: 1100px; }
+.recurring-table { min-width: 1080px; }
+.management-table .compact-primary-cell strong { color: var(--color-text); font-weight: 720; }
+.management-status { border-radius: 99px; display: inline-flex; font-size: 11.5px; font-weight: 680; line-height: 1; padding: .28rem .5rem; }
+.management-status-active,
+.management-status-upcoming { background: var(--color-sage); color: var(--color-sage-strong); }
+.management-status-archived { background: var(--color-lavender); color: var(--color-lavender-strong); }
+.management-status-overdue { background: var(--color-peach); color: var(--color-peach-strong); }
+.management-table .management-actions { align-items: flex-start; flex-wrap: wrap; min-width: 150px; }
+.management-actions .table-inline-form { margin: 0; }
+.management-actions .button { font-size: 11.5px; min-height: 0; padding: .3rem .5rem; }
+.table-action-details { position: relative; }
+.table-action-details > summary { cursor: pointer; list-style: none; white-space: nowrap; }
+.table-action-details > summary::-webkit-details-marker { display: none; }
+.table-action-details[open] { flex-basis: 100%; min-width: 560px; }
+.table-action-form { margin-top: .45rem; width: 560px; }
+.table-action-form .compact-form { margin-top: 0; }
+.table-create-form { background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: 10px; display: grid; gap: .55rem; margin-top: .45rem; padding: .65rem; width: 240px; }
+.table-create-form .field { gap: .25rem; }
+.table-create-form .input { min-width: 0; }
+.material-table .material-main,
+.recurring-table .recurring-main { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.supplier-table .supplier-address { max-width: 220px; }
+
 @media (max-width: 768px) {
   .compact-table-wrap { border: 0; overflow: visible; }
   .compact-table { background: transparent; display: block; min-width: 0; }
@@ -609,6 +637,42 @@ footer { color: var(--muted); padding: 2rem; text-align: center; }
   .compact-table td { border: 0; display: none; font-size: 12.5px; min-width: 0; padding: 0; white-space: normal; }
   .compact-table .compact-mobile-context { color: var(--color-text-secondary); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .compact-table .compact-mobile-financials { color: var(--color-text-secondary); display: block; }
+
+  .management-table .material-main,
+  .management-table .material-cost,
+  .management-table .material-status-cell,
+  .management-table .material-mobile-context,
+  .management-table .material-mobile-financials,
+  .management-table .supplier-main,
+  .management-table .supplier-total,
+  .management-table .supplier-status-cell,
+  .management-table .supplier-mobile-context,
+  .management-table .supplier-mobile-financials,
+  .management-table .recurring-main,
+  .management-table .recurring-amount,
+  .management-table .recurring-status-cell,
+  .management-table .recurring-mobile-context,
+  .management-table .recurring-mobile-financials { display: block; }
+  .management-table .management-actions { display: flex; grid-column: 1 / -1; grid-row: 4; min-width: 0; }
+  .management-table .material-main,
+  .management-table .supplier-main,
+  .management-table .recurring-main { grid-column: 1; grid-row: 1; max-width: none; }
+  .management-table .material-cost,
+  .management-table .supplier-total,
+  .management-table .recurring-amount { grid-column: 2; grid-row: 1; }
+  .management-table .material-mobile-context,
+  .management-table .supplier-mobile-context,
+  .management-table .recurring-mobile-context { grid-column: 1; grid-row: 2; }
+  .management-table .material-status-cell,
+  .management-table .supplier-status-cell,
+  .management-table .recurring-status-cell { grid-column: 2; grid-row: 2; justify-self: end; }
+  .management-table .material-mobile-financials,
+  .management-table .supplier-mobile-financials,
+  .management-table .recurring-mobile-financials { grid-column: 1 / -1; grid-row: 3; }
+  .management-table .table-action-details[open] { flex-basis: auto; min-width: 0; width: 100%; }
+  .management-table .table-action-form,
+  .management-table .table-create-form { width: 100%; }
+  .management-table .management-actions:has(.table-action-details[open]) { align-items: stretch; flex-direction: column; }
 
   .expense-table .expense-main,
   .expense-table .expense-total,

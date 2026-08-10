@@ -11,6 +11,10 @@ const sales = readFileSync(join(root, "src/app/(app)/ventes/page.tsx"), "utf8");
 const expenses = readFileSync(join(root, "src/app/(app)/depenses/page.tsx"), "utf8");
 const products = readFileSync(join(root, "src/app/(app)/produits/page.tsx"), "utf8");
 const documents = readFileSync(join(root, "src/app/(app)/documents/page.tsx"), "utf8");
+const materials = readFileSync(join(root, "src/app/(app)/produits/matieres/page.tsx"), "utf8");
+const suppliers = readFileSync(join(root, "src/app/(app)/depenses/fournisseurs/page.tsx"), "utf8");
+const recurrences = readFileSync(join(root, "src/app/(app)/depenses/recurrences/page.tsx"), "utf8");
+const home = readFileSync(join(root, "src/app/page.tsx"), "utf8");
 
 describe("identité visuelle Poudré chic", () => {
   it("déclare la palette sémantique et les dimensions communes", () => {
@@ -91,5 +95,46 @@ describe("identité visuelle Poudré chic", () => {
     expect(documents).toContain('href={`/factures/${document.id}`}');
     expect(documents).toContain('href={`/depenses/${document.expenseId}`}');
     expect(documents).not.toContain('className="document-grid"');
+  });
+
+  it("compacte les matières sans perdre leurs formulaires ni l’archivage conditionnel", () => {
+    expect(materials).toContain('className="register-table compact-table management-table material-table"');
+    for (const heading of ["Matière", "Référence", "Unité", "Quantité du lot", "Coût du lot", "Coût indicatif / unité", "Fournisseur", "État", "Actions"]) {
+      expect(materials).toContain(`<th>${heading}</th>`);
+    }
+    expect(materials).toContain("<MaterialForm material={material} suppliers={suppliers}/>");
+    expect(materials).toContain("material.is_active && <form action={archiveMaterialAction}");
+    expect(materials).not.toContain('className="management-list"');
+  });
+
+  it("compacte les fournisseurs en conservant recherche, modification et archivage", () => {
+    expect(suppliers).toContain('className="register-table compact-table management-table supplier-table"');
+    for (const heading of ["Fournisseur", "État", "Dépenses", "Total validé", "Dernière dépense", "Adresse", "Immatriculation", "Actions"]) {
+      expect(suppliers).toContain(`<th>${heading}</th>`);
+    }
+    expect(suppliers).toContain('name="recherche"');
+    expect(suppliers).toContain("<SupplierForm supplier={supplier}/>");
+    expect(suppliers).toContain("supplier.is_active && <form action={archiveSupplierAction}");
+    expect(suppliers).not.toContain('className="management-list"');
+  });
+
+  it("compacte les charges récurrentes en conservant la création manuelle datée", () => {
+    expect(recurrences).toContain('className="register-table compact-table management-table recurring-table"');
+    for (const heading of ["Description", "Fournisseur", "Sous-catégorie", "Fréquence", "Montant estimé", "Prochaine échéance", "État", "Actions"]) {
+      expect(recurrences).toContain(`<th>${heading}</th>`);
+    }
+    expect(recurrences).toContain("<RecurringForm template={template} suppliers={suppliers}/>");
+    expect(recurrences).toContain("template.is_active && <>");
+    expect(recurrences).toContain("createExpenseFromTemplateAction");
+    expect(recurrences).toContain('name="purchasedOn" type="date" defaultValue={today} required');
+    expect(recurrences).toContain("archiveRecurringAction");
+    expect(recurrences).not.toContain('className="management-list"');
+  });
+
+  it("présente les fonctionnalités publiques comme disponibles", () => {
+    expect(home).toContain("Les essentiels réunis au même endroit");
+    for (const feature of ["Ventes", "Dépenses", "Documents", "Registres"]) expect(home).toContain(`["${feature}",`);
+    expect(home).not.toContain("Bientôt dans votre espace");
+    expect(home).not.toContain("Fonctionnalité à venir");
   });
 });
