@@ -20,6 +20,7 @@ describe("migration des règles fiscales et sociales", () => {
     expect(migrations.filter((name) => name > "20260807220000_invoicing_documents.sql")).toEqual([
       migrationName,
       "20260810120000_recurring_expense_automation.sql",
+      "20260810180000_shopify_connection_foundation.sql",
     ]);
   });
 
