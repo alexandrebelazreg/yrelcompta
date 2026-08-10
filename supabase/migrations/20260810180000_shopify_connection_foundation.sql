@@ -414,6 +414,49 @@ $$;
 revoke all on function public.replace_shopify_webhook_subscriptions(uuid, uuid, uuid, jsonb) from public, anon, authenticated;
 grant execute on function public.replace_shopify_webhook_subscriptions(uuid, uuid, uuid, jsonb) to service_role;
 
+create function public.mark_shopify_webhooks_partial(
+  p_connection_id uuid,
+  p_business_id uuid,
+  p_actor uuid,
+  p_error_code text
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  actor uuid := public.assert_shopify_actor_manager(p_business_id, p_actor);
+  clean_error_code text := btrim(p_error_code);
+begin
+  if clean_error_code is null or clean_error_code !~ '^[A-Z0-9_]{2,80}$' then
+    raise exception 'invalid shopify error code' using errcode = '22023';
+  end if;
+
+  update public.shopify_connections
+  set connection_status = 'webhooks_partial',
+      last_error_code = clean_error_code
+  where id = p_connection_id and business_id = p_business_id;
+  if not found then
+    raise exception 'shopify connection not found' using errcode = 'P0002';
+  end if;
+
+  insert into public.audit_logs(
+    business_id, user_id, action_type, entity_name, entity_id, new_data
+  ) values (
+    p_business_id,
+    actor,
+    'shopify_webhooks_partial',
+    'shopify_connection',
+    p_connection_id,
+    jsonb_build_object('error_code', clean_error_code)
+  );
+end
+$$;
+
+revoke all on function public.mark_shopify_webhooks_partial(uuid, uuid, uuid, text) from public, anon, authenticated;
+grant execute on function public.mark_shopify_webhooks_partial(uuid, uuid, uuid, text) to service_role;
+
 create function public.mark_shopify_connection_verified(
   p_connection_id uuid,
   p_business_id uuid,

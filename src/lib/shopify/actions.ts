@@ -12,7 +12,7 @@ import { ShopifyError, shopifyErrorCode, shopifyErrorMessage } from "./errors";
 import { getShopifyConnectionStatus } from "./queries";
 import { getShopifyWebhookUrl } from "./site-url";
 import { getShopifyAccessToken } from "./token-manager";
-import { deleteKnownShopifyWebhooks, reconcileShopifyWebhooks } from "./webhooks";
+import { deleteYrelComptaWebhooks, reconcileShopifyWebhooks } from "./webhooks";
 
 const connectionSchema = z.object({
   shopDomain: z.string().trim().min(1).max(255),
@@ -24,6 +24,34 @@ async function actionContext() {
   const { userId, context } = await getAuthenticatedContext();
   if (!userId || !context.business) return null;
   return { userId, businessId: context.business.id };
+}
+
+async function markShopifyWebhooksPartial(
+  context: { userId: string; businessId: string },
+  connectionId: string,
+): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const { error } = await admin.rpc("mark_shopify_webhooks_partial", {
+      p_connection_id: connectionId,
+      p_business_id: context.businessId,
+      p_actor: context.userId,
+      p_error_code: "SHOPIFY_WEBHOOKS_PARTIAL",
+    });
+    if (error) {
+      console.error("Statut partiel Shopify non enregistré", {
+        code: error.code,
+        business_id: context.businessId,
+        connection_id: connectionId,
+      });
+    }
+  } catch {
+    console.error("Statut partiel Shopify non enregistré", {
+      code: "SHOPIFY_PARTIAL_STATUS_UNAVAILABLE",
+      business_id: context.businessId,
+      connection_id: connectionId,
+    });
+  }
 }
 
 function errorRedirect(error: unknown, context: { businessId?: string; connectionId?: string; shopDomain?: string } = {}): never {
@@ -88,6 +116,7 @@ export async function connectShopifyAction(formData: FormData) {
         shopDomain,
         accessToken: token.accessToken,
         webhookUrl,
+        onPartialFailure: () => markShopifyWebhooksPartial(context, data),
       });
     } catch (error) {
       if (error instanceof ShopifyError && error.code === "SITE_URL_INVALID") throw error;
@@ -99,7 +128,10 @@ export async function connectShopifyAction(formData: FormData) {
       p_actor: context.userId,
       p_subscriptions: subscriptions,
     });
-    if (stored.error || stored.data !== 5) throw new ShopifyError("SHOPIFY_WEBHOOKS_PARTIAL");
+    if (stored.error || stored.data !== 5) {
+      await markShopifyWebhooksPartial(context, connectionId);
+      throw new ShopifyError("SHOPIFY_WEBHOOKS_PARTIAL");
+    }
   } catch (error) {
     errorRedirect(error, { businessId: context.businessId, connectionId, shopDomain });
   }
@@ -142,19 +174,28 @@ export async function verifyShopifyWebhooksAction() {
 
   try {
     const { accessToken, credentials } = await getShopifyAccessToken(status.id);
-    const subscriptions = await reconcileShopifyWebhooks({
-      shopDomain: credentials.shop_domain,
-      accessToken,
-      webhookUrl: getShopifyWebhookUrl(),
-    });
     const admin = createAdminClient();
+    let subscriptions;
+    try {
+      subscriptions = await reconcileShopifyWebhooks({
+        shopDomain: credentials.shop_domain,
+        accessToken,
+        webhookUrl: getShopifyWebhookUrl(),
+      });
+    } catch {
+      await markShopifyWebhooksPartial(context, status.id);
+      throw new ShopifyError("SHOPIFY_WEBHOOKS_PARTIAL");
+    }
     const { data, error } = await admin.rpc("replace_shopify_webhook_subscriptions", {
       p_connection_id: status.id,
       p_business_id: context.businessId,
       p_actor: context.userId,
       p_subscriptions: subscriptions,
     });
-    if (error || data !== 5) throw new ShopifyError("SHOPIFY_WEBHOOKS_PARTIAL");
+    if (error || data !== 5) {
+      await markShopifyWebhooksPartial(context, status.id);
+      throw new ShopifyError("SHOPIFY_WEBHOOKS_PARTIAL");
+    }
   } catch (error) {
     errorRedirect(error, { businessId: context.businessId, connectionId: status.id, shopDomain: status.shop_domain });
   }
@@ -183,10 +224,11 @@ export async function disconnectShopifyAction() {
         return typeof id === "string" ? [id] : [];
       })
       : [];
-    await deleteKnownShopifyWebhooks({
+    await deleteYrelComptaWebhooks({
       shopDomain: credentials.shop_domain,
       accessToken,
-      subscriptionIds,
+      webhookUrl: getShopifyWebhookUrl(),
+      knownSubscriptionIds: subscriptionIds,
     });
     const disconnected = await admin.rpc("disconnect_shopify_connection", {
       p_connection_id: status.id,

@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { SHOPIFY_WEBHOOK_TOPICS } from "./constants";
 import {
+  deleteYrelComptaWebhooks,
   extractShopifyResourceIds,
   hashShopifyWebhookPayload,
   parseShopifyWebhookTopic,
@@ -151,5 +152,121 @@ describe("webhooks Shopify", () => {
       webhookUrl: "https://yrelcompta.test/api/integrations/shopify/webhook",
       fetchImpl,
     })).rejects.toThrow("SHOPIFY_GRAPHQL_ERROR");
+  });
+
+  it("marque la connexion partielle quand la troisième création échoue", async () => {
+    let creationCount = 0;
+    const onPartialFailure = vi.fn(async () => undefined);
+    const fetchImpl = vi.fn(async (_url: string | URL | Request, options?: RequestInit) => {
+      const request = graphqlRequest(options);
+      if (request.query.includes("YrelComptaWebhookSubscriptions")) {
+        return jsonResponse({ data: { webhookSubscriptions: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } } } });
+      }
+      creationCount += 1;
+      if (creationCount === 3) {
+        return jsonResponse({ data: { webhookSubscriptionCreate: {
+          webhookSubscription: null,
+          userErrors: [{ field: ["topic"], message: "Échec simulé" }],
+        } } });
+      }
+      const topic = String(request.variables.topic);
+      return jsonResponse({ data: { webhookSubscriptionCreate: {
+        webhookSubscription: { id: `gid://shopify/WebhookSubscription/${creationCount}`, topic, uri: "https://yrelcompta.test/api/integrations/shopify/webhook" },
+        userErrors: [],
+      } } });
+    });
+
+    await expect(reconcileShopifyWebhooks({
+      shopDomain: "maboutique",
+      accessToken: "token-test",
+      webhookUrl: "https://yrelcompta.test/api/integrations/shopify/webhook",
+      fetchImpl,
+      onPartialFailure,
+    })).rejects.toThrow("SHOPIFY_GRAPHQL_ERROR");
+    expect(creationCount).toBe(3);
+    expect(onPartialFailure).toHaveBeenCalledOnce();
+  });
+
+  it("récupère et supprime les webhooks live jamais persistés sans toucher aux autres", async () => {
+    const deletedIds: string[] = [];
+    const callbackUrl = "https://yrelcompta.test/api/integrations/shopify/webhook";
+    const live = [
+      { id: "gid://shopify/WebhookSubscription/1", topic: "ORDERS_CREATE", uri: callbackUrl },
+      { id: "gid://shopify/WebhookSubscription/2", topic: "ORDERS_UPDATED", uri: callbackUrl },
+      { id: "gid://shopify/WebhookSubscription/3", topic: "ORDERS_PAID", uri: "https://autre.test/webhook" },
+      { id: "gid://shopify/WebhookSubscription/4", topic: "PRODUCTS_UPDATE", uri: callbackUrl },
+    ];
+    const fetchImpl = vi.fn(async (_url: string | URL | Request, options?: RequestInit) => {
+      const request = graphqlRequest(options);
+      if (request.query.includes("YrelComptaWebhookSubscriptions")) {
+        return jsonResponse({ data: { webhookSubscriptions: { nodes: live, pageInfo: { hasNextPage: false, endCursor: null } } } });
+      }
+      const id = String(request.variables.id);
+      deletedIds.push(id);
+      return jsonResponse({ data: { webhookSubscriptionDelete: { deletedWebhookSubscriptionId: id, userErrors: [] } } });
+    });
+
+    const selected = await deleteYrelComptaWebhooks({
+      shopDomain: "maboutique",
+      accessToken: "token-test",
+      webhookUrl: callbackUrl,
+      knownSubscriptionIds: [],
+      fetchImpl,
+    });
+    expect(selected).toEqual([
+      "gid://shopify/WebhookSubscription/1",
+      "gid://shopify/WebhookSubscription/2",
+    ]);
+    expect(deletedIds).toEqual(selected);
+  });
+
+  it("déduplique l’union des GID locaux et live avant suppression", async () => {
+    const deletedIds: string[] = [];
+    const callbackUrl = "https://yrelcompta.test/api/integrations/shopify/webhook";
+    const live = [1, 2, 3].map((id, index) => ({
+      id: `gid://shopify/WebhookSubscription/${id}`,
+      topic: SHOPIFY_WEBHOOK_TOPICS[index],
+      uri: callbackUrl,
+    }));
+    const fetchImpl = vi.fn(async (_url: string | URL | Request, options?: RequestInit) => {
+      const request = graphqlRequest(options);
+      if (request.query.includes("YrelComptaWebhookSubscriptions")) {
+        return jsonResponse({ data: { webhookSubscriptions: { nodes: live, pageInfo: { hasNextPage: false, endCursor: null } } } });
+      }
+      const id = String(request.variables.id);
+      deletedIds.push(id);
+      return jsonResponse({ data: { webhookSubscriptionDelete: { deletedWebhookSubscriptionId: id, userErrors: [] } } });
+    });
+
+    await deleteYrelComptaWebhooks({
+      shopDomain: "maboutique",
+      accessToken: "token-test",
+      webhookUrl: callbackUrl,
+      knownSubscriptionIds: [
+        "gid://shopify/WebhookSubscription/1",
+        "gid://shopify/WebhookSubscription/2",
+      ],
+      fetchImpl,
+    });
+    expect(deletedIds).toEqual([
+      "gid://shopify/WebhookSubscription/1",
+      "gid://shopify/WebhookSubscription/2",
+      "gid://shopify/WebhookSubscription/3",
+    ]);
+  });
+
+  it("ne supprime rien et remonte l’erreur si le listing live échoue", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ error: "indisponible" }), {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    }));
+    await expect(deleteYrelComptaWebhooks({
+      shopDomain: "maboutique",
+      accessToken: "token-test",
+      webhookUrl: "https://yrelcompta.test/api/integrations/shopify/webhook",
+      knownSubscriptionIds: ["gid://shopify/WebhookSubscription/1"],
+      fetchImpl,
+    })).rejects.toThrow("SHOPIFY_UNAVAILABLE");
+    expect(fetchImpl).toHaveBeenCalledOnce();
   });
 });

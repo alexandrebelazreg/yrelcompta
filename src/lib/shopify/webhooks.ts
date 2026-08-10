@@ -6,7 +6,7 @@ import type { ShopifyWebhookSubscription } from "./types";
 
 type FetchImplementation = typeof fetch;
 
-interface ListedSubscription {
+export interface ShopifyListedWebhookSubscription {
   id: string;
   topic: string;
   uri: string;
@@ -19,7 +19,7 @@ interface UserError {
 
 interface WebhookListData {
   webhookSubscriptions: {
-    nodes: ListedSubscription[];
+    nodes: ShopifyListedWebhookSubscription[];
     pageInfo: { hasNextPage: boolean; endCursor: string | null };
   };
 }
@@ -100,12 +100,12 @@ export function extractShopifyResourceIds(topic: ShopifyWebhookTopic, payload: u
   };
 }
 
-async function listWebhookSubscriptions(
+export async function listShopifyWebhookSubscriptions(
   shopDomain: string,
   accessToken: string,
   fetchImpl?: FetchImplementation,
-): Promise<ListedSubscription[]> {
-  const subscriptions: ListedSubscription[] = [];
+): Promise<ShopifyListedWebhookSubscription[]> {
+  const subscriptions: ShopifyListedWebhookSubscription[] = [];
   let cursor: string | null = null;
   do {
     const data: WebhookListData = await shopifyGraphql<WebhookListData>({
@@ -136,9 +136,9 @@ async function createWebhookSubscription(
   topic: ShopifyWebhookTopic,
   uri: string,
   fetchImpl?: FetchImplementation,
-): Promise<ListedSubscription> {
+): Promise<ShopifyListedWebhookSubscription> {
   const data = await shopifyGraphql<{
-    webhookSubscriptionCreate: { webhookSubscription: ListedSubscription | null; userErrors: UserError[] };
+    webhookSubscriptionCreate: { webhookSubscription: ShopifyListedWebhookSubscription | null; userErrors: UserError[] };
   }>({
     shopDomain,
     accessToken,
@@ -164,9 +164,9 @@ async function updateWebhookSubscription(
   id: string,
   uri: string,
   fetchImpl?: FetchImplementation,
-): Promise<ListedSubscription> {
+): Promise<ShopifyListedWebhookSubscription> {
   const data = await shopifyGraphql<{
-    webhookSubscriptionUpdate: { webhookSubscription: ListedSubscription | null; userErrors: UserError[] };
+    webhookSubscriptionUpdate: { webhookSubscription: ShopifyListedWebhookSubscription | null; userErrors: UserError[] };
   }>({
     shopDomain,
     accessToken,
@@ -191,31 +191,80 @@ export async function reconcileShopifyWebhooks({
   accessToken,
   webhookUrl,
   fetchImpl,
+  onPartialFailure,
 }: {
   shopDomain: string;
   accessToken: string;
   webhookUrl: string;
   fetchImpl?: FetchImplementation;
+  onPartialFailure?: () => Promise<void>;
 }): Promise<ShopifyWebhookSubscription[]> {
-  const existing = await listWebhookSubscriptions(shopDomain, accessToken, fetchImpl);
-  const reconciled: ShopifyWebhookSubscription[] = [];
+  try {
+    const existing = await listShopifyWebhookSubscriptions(shopDomain, accessToken, fetchImpl);
+    const reconciled: ShopifyWebhookSubscription[] = [];
 
-  for (const topic of SHOPIFY_WEBHOOK_TOPICS) {
-    const exact = existing.find((subscription) => subscription.topic === topic && subscription.uri === webhookUrl);
-    const managed = exact ?? existing.find((subscription) =>
-      subscription.topic === topic && subscription.uri.endsWith(SHOPIFY_WEBHOOK_PATH));
-    const subscription = exact
-      ?? (managed
-        ? await updateWebhookSubscription(shopDomain, accessToken, managed.id, webhookUrl, fetchImpl)
-        : await createWebhookSubscription(shopDomain, accessToken, topic, webhookUrl, fetchImpl));
-    reconciled.push({
-      topic,
-      shopify_subscription_gid: subscription.id,
-      uri: subscription.uri,
-    });
+    for (const topic of SHOPIFY_WEBHOOK_TOPICS) {
+      const exact = existing.find((subscription) => subscription.topic === topic && subscription.uri === webhookUrl);
+      const managed = exact ?? existing.find((subscription) =>
+        subscription.topic === topic && subscription.uri.endsWith(SHOPIFY_WEBHOOK_PATH));
+      const subscription = exact
+        ?? (managed
+          ? await updateWebhookSubscription(shopDomain, accessToken, managed.id, webhookUrl, fetchImpl)
+          : await createWebhookSubscription(shopDomain, accessToken, topic, webhookUrl, fetchImpl));
+      reconciled.push({
+        topic,
+        shopify_subscription_gid: subscription.id,
+        uri: subscription.uri,
+      });
+    }
+
+    return reconciled;
+  } catch (error) {
+    await onPartialFailure?.();
+    throw error;
   }
+}
 
-  return reconciled;
+export function selectYrelComptaWebhookSubscriptionIds({
+  knownSubscriptionIds,
+  liveSubscriptions,
+  webhookUrl,
+}: {
+  knownSubscriptionIds: readonly string[];
+  liveSubscriptions: readonly ShopifyListedWebhookSubscription[];
+  webhookUrl: string;
+}): string[] {
+  const selected = new Set(knownSubscriptionIds);
+  for (const subscription of liveSubscriptions) {
+    if (selected.has(subscription.id)
+      || (isShopifyWebhookTopic(subscription.topic) && subscription.uri === webhookUrl)) {
+      selected.add(subscription.id);
+    }
+  }
+  return [...selected];
+}
+
+export async function deleteYrelComptaWebhooks({
+  shopDomain,
+  accessToken,
+  webhookUrl,
+  knownSubscriptionIds,
+  fetchImpl,
+}: {
+  shopDomain: string;
+  accessToken: string;
+  webhookUrl: string;
+  knownSubscriptionIds: readonly string[];
+  fetchImpl?: FetchImplementation;
+}): Promise<string[]> {
+  const liveSubscriptions = await listShopifyWebhookSubscriptions(shopDomain, accessToken, fetchImpl);
+  const subscriptionIds = selectYrelComptaWebhookSubscriptionIds({
+    knownSubscriptionIds,
+    liveSubscriptions,
+    webhookUrl,
+  });
+  await deleteKnownShopifyWebhooks({ shopDomain, accessToken, subscriptionIds, fetchImpl });
+  return subscriptionIds;
 }
 
 export async function deleteKnownShopifyWebhooks({

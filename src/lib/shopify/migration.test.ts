@@ -55,7 +55,7 @@ describe("migration Shopify sécurisée", () => {
     expect(actorCheck).toContain("user_id = p_actor");
     expect(actorCheck).toContain("role in ('owner', 'member')");
     expect(actorCheck).not.toContain("auth.uid()");
-    expect(sql.match(/public\.assert_shopify_actor_manager\(p_business_id, p_actor\)/g)?.length).toBe(4);
+    expect(sql.match(/public\.assert_shopify_actor_manager\(p_business_id, p_actor\)/g)?.length).toBe(5);
     expect(sql).toContain("where id = p_connection_id and business_id = p_business_id");
     expect(sql).toContain("where shop_domain = p_shop_domain and business_id <> p_business_id");
   });
@@ -65,6 +65,7 @@ describe("migration Shopify sécurisée", () => {
       "public.assert_shopify_actor_manager(uuid, uuid)",
       "public.upsert_shopify_connection(uuid, uuid, text, text, text, text, timestamptz, text, text, text, text[])",
       "public.replace_shopify_webhook_subscriptions(uuid, uuid, uuid, jsonb)",
+      "public.mark_shopify_webhooks_partial(uuid, uuid, uuid, text)",
       "public.mark_shopify_connection_verified(uuid, uuid, uuid, text[])",
       "public.disconnect_shopify_connection(uuid, uuid, uuid)",
       "public.get_shopify_backend_credentials(uuid)",
@@ -77,9 +78,18 @@ describe("migration Shopify sécurisée", () => {
       expect(sql).toContain(`revoke all on function ${signature} from public, anon, authenticated`);
       expect(sql).toContain(`grant execute on function ${signature} to service_role`);
     }
-    for (const mutation of ["upsert_shopify_connection", "replace_shopify_webhook_subscriptions", "mark_shopify_connection_verified", "disconnect_shopify_connection"]) {
+    for (const mutation of ["upsert_shopify_connection", "replace_shopify_webhook_subscriptions", "mark_shopify_webhooks_partial", "mark_shopify_connection_verified", "disconnect_shopify_connection"]) {
       expect(sql).not.toMatch(new RegExp(`grant execute on function public\\.${mutation}\\([^;]+ to authenticated`));
     }
+  });
+
+  it("marque explicitement une réconciliation partielle avec un code interne", () => {
+    const partial = section("create function public.mark_shopify_webhooks_partial", "revoke all on function public.mark_shopify_webhooks_partial");
+    expect(partial).toContain("public.assert_shopify_actor_manager(p_business_id, p_actor)");
+    expect(partial).toContain("connection_status = 'webhooks_partial'");
+    expect(partial).toContain("last_error_code = clean_error_code");
+    expect(partial).toContain("clean_error_code !~ '^[A-Z0-9_]{2,80}$'");
+    expect(partial).not.toMatch(/client_secret|access_token|response_body/i);
   });
 
   it("conserve exactement un secret précédent pendant 65 minutes", () => {

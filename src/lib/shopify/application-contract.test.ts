@@ -35,10 +35,27 @@ describe("contrats de sécurité Shopify côté application", () => {
     expect(actions).not.toContain('import { createClient } from "@/lib/supabase/server"');
     expect(actions).toContain("const { userId, context } = await getAuthenticatedContext()");
     expect(actions.match(/createAdminClient\(\)/g)?.length).toBeGreaterThanOrEqual(4);
-    expect(actions.match(/p_actor: context\.userId/g)?.length).toBe(5);
+    expect(actions.match(/p_actor: context\.userId/g)?.length).toBe(6);
     for (const rpc of ["upsert_shopify_connection", "replace_shopify_webhook_subscriptions", "mark_shopify_connection_verified", "disconnect_shopify_connection"]) {
       expect(actions).toContain(`admin.rpc("${rpc}"`);
     }
+  });
+
+  it("marque tout échec de réconciliation comme partiel", () => {
+    expect(actions).toContain('admin.rpc("mark_shopify_webhooks_partial"');
+    expect(actions).toContain('p_error_code: "SHOPIFY_WEBHOOKS_PARTIAL"');
+    expect(actions).toContain("onPartialFailure: () => markShopifyWebhooksPartial(context, data)");
+    expect(actions.match(/await markShopifyWebhooksPartial\(context, status\.id\)/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(ui).toContain('status.connection_status === "connected" && status.webhook_count === status.expected_webhook_count');
+  });
+
+  it("relit les webhooks live avant de supprimer la connexion locale", () => {
+    const liveCleanup = actions.indexOf("await deleteYrelComptaWebhooks");
+    const localDisconnect = actions.indexOf('admin.rpc("disconnect_shopify_connection"');
+    expect(liveCleanup).toBeGreaterThan(0);
+    expect(localDisconnect).toBeGreaterThan(liveCleanup);
+    expect(actions).toContain("knownSubscriptionIds: subscriptionIds");
+    expect(actions).toContain("webhookUrl: getShopifyWebhookUrl()");
   });
 
   it("ne transmet ni secret ni token dans l’état UI", () => {
