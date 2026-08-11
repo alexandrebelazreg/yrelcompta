@@ -17,6 +17,9 @@ const recurrences = readFileSync(join(root, "src/app/(app)/depenses/recurrences/
 const recurringForm = readFileSync(join(root, "src/components/expenses/recurring-form.tsx"), "utf8");
 const dashboardQueries = readFileSync(join(root, "src/lib/dashboard/queries.ts"), "utf8");
 const home = readFileSync(join(root, "src/app/page.tsx"), "utf8");
+const settings = readFileSync(join(root, "src/app/(app)/parametres/page.tsx"), "utf8");
+const shopifySettings = readFileSync(join(root, "src/app/(app)/parametres/shopify/page.tsx"), "utf8");
+const shopifyUi = readFileSync(join(root, "src/components/shopify/shopify-settings.tsx"), "utf8");
 
 describe("identité visuelle Poudré chic", () => {
   it("déclare la palette sémantique et les dimensions communes", () => {
@@ -157,5 +160,19 @@ describe("identité visuelle Poudré chic", () => {
     for (const feature of ["Ventes", "Dépenses", "Documents", "Registres"]) expect(home).toContain(`["${feature}",`);
     expect(home).not.toContain("Bientôt dans votre espace");
     expect(home).not.toContain("Fonctionnalité à venir");
+  });
+
+  it("intègre Shopify aux paramètres avec une présentation compacte et responsive", () => {
+    expect(settings).toContain('href="/parametres/shopify"');
+    expect(settings).toContain("Configurer Shopify");
+    expect(shopifySettings).toContain("<ConnectedShopify status={status}/>");
+    expect(shopifyUi).toContain("<InfoTip");
+    expect(shopifyUi).toContain('type="password"');
+    expect(shopifyUi).toContain("Tester la connexion");
+    expect(shopifyUi).toContain("Vérifier les webhooks");
+    expect(shopifyUi).toContain("Remplacer les identifiants");
+    expect(shopifyUi).toContain("Déconnecter Shopify");
+    expect(styles).toContain(".shopify-status-grid");
+    expect(styles).toContain("@media (max-width: 420px) {\n  .shopify-status-grid { grid-template-columns: 1fr; }");
   });
 });
