@@ -92,14 +92,14 @@ function professionalAmount(template: DashboardRecurringTemplate): bigint {
   return exactInteger(calculateProfessionalAmount(template.estimatedAmountCents, template.professionalShareBasisPoints));
 }
 
-function isEligibleFixedCost(template: DashboardRecurringTemplate): boolean {
+export function isEligibleFixedCost(template: DashboardRecurringTemplate): boolean {
   return template.isActive
     && template.nature === "operating"
     && template.costBehavior === "fixed"
     && !EXCLUDED_FIXED_CATEGORIES.has(template.category);
 }
 
-function annualFrequency(frequency: DashboardRecurringTemplate["frequency"]): bigint {
+export function annualFrequency(frequency: DashboardRecurringTemplate["frequency"]): bigint {
   if (frequency === "monthly") return BigInt(12);
   if (frequency === "quarterly") return BigInt(4);
   return BigInt(1);

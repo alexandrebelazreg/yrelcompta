@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getSupabaseConfig } from "./config";
 
 const privatePrefixes = [
-  "/tableau-de-bord", "/ventes", "/depenses", "/produits",
+  "/tableau-de-bord", "/ventes", "/depenses", "/produits", "/rentabilite",
   "/documents", "/registres", "/parametres", "/demarrage",
 ];
 const authPaths = ["/connexion", "/inscription"];

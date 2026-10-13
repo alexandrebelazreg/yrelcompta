@@ -24,6 +24,7 @@ describe("migration registres et déclarations", () => {
       "20260808120000_fiscal_social_rules.sql",
       "20260810120000_recurring_expense_automation.sql",
       "20260810180000_shopify_connection_foundation.sql",
+      "20261014120000_custom_categories_material_colors.sql",
     ]);
   });
 

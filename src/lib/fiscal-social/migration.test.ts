@@ -21,6 +21,7 @@ describe("migration des règles fiscales et sociales", () => {
       migrationName,
       "20260810120000_recurring_expense_automation.sql",
       "20260810180000_shopify_connection_foundation.sql",
+      "20261014120000_custom_categories_material_colors.sql",
     ]);
   });
 

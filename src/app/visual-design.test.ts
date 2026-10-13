@@ -107,7 +107,7 @@ describe("identité visuelle Poudré chic", () => {
     for (const heading of ["Matière", "Référence", "Unité", "Quantité du lot", "Coût du lot", "Coût indicatif / unité", "Fournisseur", "État", "Actions"]) {
       expect(materials).toContain(`<th>${heading}</th>`);
     }
-    expect(materials).toContain("<MaterialForm material={material} suppliers={suppliers}/>");
+    expect(materials).toContain("<MaterialForm material={material} suppliers={suppliers} colors={colors}/>");
     expect(materials).toContain("material.is_active && <form action={archiveMaterialAction}");
     expect(materials).not.toContain('className="management-list"');
   });

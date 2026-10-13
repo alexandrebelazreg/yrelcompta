@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const links = [
   ["/tableau-de-bord", "Tableau de bord", "⌂"], ["/ventes", "Ventes", "↗"], ["/factures", "Factures", "▧"],
-  ["/depenses", "Dépenses", "↙"], ["/produits", "Produits", "◇"],
+  ["/depenses", "Dépenses", "↙"], ["/produits", "Produits", "◇"], ["/rentabilite", "Rentabilité", "◎"],
   ["/documents", "Documents", "▤"], ["/registres", "Registres", "▦"],
   ["/parametres", "Paramètres", "⚙"],
 ];
