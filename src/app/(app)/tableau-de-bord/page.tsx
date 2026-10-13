@@ -93,7 +93,7 @@ function DashboardContent({ metrics, recentSales, recurringDraftCount }: { metri
     </section>
 
     <section className="dashboard-section" aria-labelledby="break-even-heading">
-      <DashboardSectionHeading id="break-even-heading" title="Charges fixes et seuil de rentabilité" help="Les charges fixes sont annualisées depuis les modèles actifs, fixes et d’exploitation, puis ramenées au mois. Le seuil indique le chiffre d’affaires marchand mensuel nécessaire pour couvrir cette estimation avec la marge historique de référence." />
+      <DashboardSectionHeading id="break-even-heading" title="Charges fixes et seuil de rentabilité" action={<Link className="secondary-link" href="/rentabilite">Voir le détail</Link>} help="Les charges fixes sont annualisées depuis les modèles actifs, fixes et d’exploitation, puis ramenées au mois. Le seuil indique le chiffre d’affaires marchand mensuel nécessaire pour couvrir cette estimation avec la marge historique de référence." />
       <div className="metric-grid">
         <MetricCard label="Charges fixes estimées / mois" value={moneyOrUnavailable(metrics.fixedCosts.monthlyCents)} help="Estimation issue des charges récurrentes actives classées en charges fixes." secondary={metrics.fixedCosts.annualCents === null ? undefined : `${formatEuroCents(metrics.fixedCosts.annualCents)} par an`} action={<Link className="card-link" href="/depenses/recurrences">Gérer les charges fixes</Link>} />
         <MetricCard label="Taux de marge de fabrication de référence — 90 jours" value={referenceAvailable ? percentOrUnavailable(metrics.reference.marginRateBasisPoints) : "Indisponible"} help={`${metrics.reference.saleCount} vente(s) complète(s) pondérée(s) par le chiffre d’affaires marchandises.`} />

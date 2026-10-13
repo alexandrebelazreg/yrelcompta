@@ -318,7 +318,7 @@ footer { color: var(--muted); padding: 2rem; text-align: center; }
 .header-actions,.form-actions{display:flex;flex-wrap:wrap;gap:.7rem}.expense-summary{display:grid;gap:.8rem;grid-template-columns:repeat(6,1fr);margin-bottom:1.5rem}.expense-summary .card strong{font-size:1.25rem}.expense-filters{align-items:end;background:white;border:1px solid var(--line);border-radius:var(--radius);display:grid;gap:.7rem;grid-template-columns:repeat(6,minmax(120px,1fr));margin-bottom:1.5rem;padding:1rem}.expense-filters .filter-search{grid-column:span 2}.expense-filters button{background:white;cursor:pointer}.management-list,.document-grid{display:grid;gap:1rem;margin-top:1.5rem}.management-list{grid-template-columns:repeat(2,minmax(0,1fr))}.management-list h2,.document-grid h2,.missing-documents h2{font-size:1.15rem}.management-list details{margin:.8rem 0}.upload-form{align-items:end;display:grid;gap:1rem;grid-template-columns:1fr 2fr auto;margin-bottom:1rem}.document-row{align-items:center;background:white;border:1px solid var(--line);border-radius:.8rem;display:flex;gap:1rem;justify-content:space-between;margin:.6rem 0;padding:1rem}.document-row>div,.missing-documents a{display:flex;flex-direction:column}.document-row span,.missing-documents span{color:var(--muted);font-size:.85rem}.document-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.document-icon{background:var(--brand-soft);border-radius:.5rem;color:var(--brand);display:inline-flex;font-size:.75rem;font-weight:800;padding:.5rem}.missing-documents{background:#f6f2ef;border-radius:var(--radius);margin-top:2rem;padding:1.3rem}.missing-documents a{border-top:1px solid var(--line);padding:.7rem 0}
 @media(max-width:1050px){.expense-summary{grid-template-columns:repeat(3,1fr)}.expense-filters{grid-template-columns:repeat(3,1fr)}.document-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.header-actions{align-items:stretch;flex-direction:column;width:100%}.expense-summary,.expense-filters,.management-list,.document-grid,.upload-form{grid-template-columns:1fr}.expense-filters .filter-search{grid-column:auto}.document-row{align-items:stretch;flex-direction:column}.app-content{overflow-x:hidden}}
-.product-grid{display:grid;gap:1rem;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:1.5rem}.product-card{text-decoration:none}.product-card h2{font-size:1.15rem}.recipe-line{align-items:end;display:grid;gap:.8rem;grid-template-columns:2fr 1fr auto}.recipe-line .danger-text{margin-bottom:.1rem}@media(max-width:900px){.product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){.product-grid,.recipe-line{grid-template-columns:1fr}}
+.product-grid{display:grid;gap:1rem;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:1.5rem}.product-card{text-decoration:none}.product-card h2{font-size:1.15rem}.recipe-line{align-items:end;display:grid;gap:.8rem;grid-template-columns:minmax(0,3fr) minmax(0,1fr) auto}.recipe-line .danger-text{margin-bottom:.1rem}@media(max-width:900px){.product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){.product-grid,.recipe-line{grid-template-columns:1fr}}
 
 /* Tableau de bord mensuel */
 .dashboard-month-form { align-items: end; display: grid; gap: .55rem; grid-template-columns: minmax(150px, 190px) auto; }
@@ -649,10 +649,16 @@ footer { color: var(--muted); padding: 2rem; text-align: center; }
 .table-create-form { background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: 10px; display: grid; gap: .55rem; margin-top: .45rem; padding: .65rem; width: 240px; }
 .table-create-form .field { gap: .25rem; }
 .table-create-form .input { min-width: 0; }
-.material-table .material-main,
 .recurring-table .recurring-main { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+/* Les noms de matières sont souvent longs : ils passent à la ligne au lieu d’être tronqués. */
+.material-table .material-main { min-width: 200px; max-width: 360px; overflow-wrap: anywhere; white-space: normal; }
+.material-table .material-color { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
 .supplier-table .supplier-address { max-width: 220px; }
+.profitability-table { min-width: 560px; }
 .recurring-options { align-items: center; display: flex; flex-wrap: wrap; gap: .55rem .8rem; }
+.creatable-select-new { display: flex; gap: .45rem; }
+.creatable-select-new .input { flex: 1; min-width: 0; }
+.creatable-select-new .secondary-link { min-height: 0; padding-block: .4rem; }
 .toggle-field { align-items: center; background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: 10px; cursor: pointer; display: inline-flex; gap: .45rem; min-height: 38px; padding: .45rem .65rem; }
 .toggle-field input { accent-color: var(--color-brand); height: 1rem; width: 1rem; }
 .recurring-draft-notice { align-items: center; background: var(--color-sage); border: 1px solid var(--color-border); border-radius: var(--radius-card); display: flex; justify-content: space-between; margin-bottom: 1rem; padding: .7rem .85rem; }
@@ -702,6 +708,11 @@ footer { color: var(--muted); padding: 2rem; text-align: center; }
   .management-table .material-mobile-financials,
   .management-table .supplier-mobile-financials,
   .management-table .recurring-mobile-financials { grid-column: 1 / -1; grid-row: 3; }
+  .profitability-table .profitability-main,
+  .profitability-table .profitability-amount { display: block; }
+  .profitability-table .profitability-main { grid-column: 1; grid-row: 1; }
+  .profitability-table .profitability-amount { grid-column: 2; grid-row: 1; }
+  .profitability-table .compact-mobile-context { grid-column: 1 / -1; grid-row: 2; }
   .management-table .table-action-details[open] { flex-basis: auto; min-width: 0; width: 100%; }
   .management-table .table-action-form,
   .management-table .table-create-form { width: 100%; }
