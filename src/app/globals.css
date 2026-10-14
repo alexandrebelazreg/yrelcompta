@@ -640,6 +640,21 @@ footer { color: var(--muted); padding: 2rem; text-align: center; }
 .management-table .management-actions { align-items: flex-start; flex-wrap: wrap; min-width: 150px; }
 .management-actions .table-inline-form { margin: 0; }
 .management-actions .button { font-size: 11.5px; min-height: 0; padding: .3rem .5rem; }
+button.table-action-link { background: none; border: 0; cursor: pointer; font: inherit; padding: 0; white-space: nowrap; }
+.compact-table button.table-action-link { font-size: 12px; font-weight: 680; }
+/* Fenêtre de modification centrée, au lieu d’un formulaire ouvert dans la ligne du tableau. */
+.edit-dialog { background: transparent; border: 0; margin: auto; max-height: calc(100dvh - 2rem); max-width: min(720px, calc(100vw - 2rem)); padding: 0; width: 100%; }
+.edit-dialog::backdrop { background: rgb(30 20 25 / 45%); }
+.edit-dialog-panel { background: var(--color-surface); color: var(--color-text); font-size: 15px; font-weight: 400; line-height: 1.55; border: 1px solid var(--color-border); border-radius: var(--radius-card); box-shadow: 0 18px 50px rgb(0 0 0 / 18%); max-height: calc(100dvh - 2rem); overflow-y: auto; padding: 1rem 1.1rem 1.2rem; text-align: left; white-space: normal; }
+.edit-dialog-header { align-items: center; display: flex; gap: .8rem; justify-content: space-between; margin-bottom: .6rem; }
+.edit-dialog-header h2 { font-size: 1.05rem; overflow-wrap: anywhere; }
+.edit-dialog-close { background: none; border: 0; border-radius: 8px; color: var(--color-text-secondary); cursor: pointer; font-size: 1.5rem; line-height: 1; padding: .2rem .5rem; }
+.edit-dialog-close:hover { background: var(--color-surface-muted); color: var(--color-text); }
+.edit-dialog .compact-form { margin-top: 0; }
+@media (max-width: 700px) {
+  .edit-dialog { max-height: 100dvh; max-width: 100vw; }
+  .edit-dialog-panel { border-radius: 0; max-height: 100dvh; min-height: 100dvh; }
+}
 .table-action-details { position: relative; }
 .table-action-details > summary { cursor: pointer; list-style: none; white-space: nowrap; }
 .table-action-details > summary::-webkit-details-marker { display: none; }
