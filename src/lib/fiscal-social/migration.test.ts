@@ -22,6 +22,7 @@ describe("migration des règles fiscales et sociales", () => {
       "20260810120000_recurring_expense_automation.sql",
       "20260810180000_shopify_connection_foundation.sql",
       "20261014120000_custom_categories_material_colors.sql",
+      "20261014180000_material_categories.sql",
     ]);
   });
 

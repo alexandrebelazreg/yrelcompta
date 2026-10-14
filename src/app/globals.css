@@ -623,7 +623,7 @@ footer { color: var(--muted); padding: 2rem; text-align: center; }
 .management-table { min-width: 1040px; }
 .management-table th,
 .management-table td { padding-inline: .55rem; }
-.material-table { min-width: 1120px; }
+.material-table { min-width: 1240px; }
 .supplier-table { min-width: 1100px; }
 .recurring-table { min-width: 1080px; }
 .management-table .compact-primary-cell strong { color: var(--color-text); font-weight: 720; }
@@ -652,7 +652,14 @@ footer { color: var(--muted); padding: 2rem; text-align: center; }
 .recurring-table .recurring-main { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
 /* Les noms de matières sont souvent longs : ils passent à la ligne au lieu d’être tronqués. */
 .material-table .material-main { min-width: 200px; max-width: 360px; overflow-wrap: anywhere; white-space: normal; }
-.material-table .material-color { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+.material-table .material-color,
+.material-table .material-category { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.material-panels { align-items: flex-start; display: flex; flex-wrap: wrap; gap: .6rem; }
+.material-panels > .action-panel[open] { flex-basis: 100%; }
+.material-category-list { display: grid; gap: .55rem; margin-top: .6rem; }
+.material-category-form { align-items: end; display: grid; gap: .55rem; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; }
+.material-filters { margin-top: .8rem; }
+@media (max-width: 700px) { .material-category-form { grid-template-columns: 1fr; } }
 .supplier-table .supplier-address { max-width: 220px; }
 .profitability-table { min-width: 560px; }
 .recurring-options { align-items: center; display: flex; flex-wrap: wrap; gap: .55rem .8rem; }
