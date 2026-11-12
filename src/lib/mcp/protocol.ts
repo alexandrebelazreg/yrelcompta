@@ -3,10 +3,15 @@ import { z } from "zod";
 /** Versions du protocole MCP acceptées ; la plus récente est proposée par défaut. */
 export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
 export const SERVER_INFO = { name: "yrelcompta", title: "YrelCompta", version: "1.0.0" };
-export const SERVER_INSTRUCTIONS = "YrelCompta est l’outil de gestion d’une micro-entreprise française de bijoux. Les montants sont en euros TTC. Les estimations de coût, de marge et de rentabilité sont internes : ce ne sont ni des résultats comptables ni des montants fiscaux dus. Ce connecteur est en lecture seule.";
+export const SERVER_INSTRUCTIONS = "YrelCompta est l’outil de gestion d’une micro-entreprise française de bijoux. Les montants sont en euros TTC. Les estimations de coût, de marge et de rentabilité sont internes : ce ne sont ni des résultats comptables ni des montants fiscaux dus. Avant toute création ou modification, récapitulez ce qui va être enregistré et attendez l’accord de l’utilisatrice. Les dépenses sont créées en brouillon : l’utilisatrice les vérifie et les valide elle-même dans YrelCompta. Consultez d’abord les données existantes (matières, fournisseurs, catégories) pour éviter les doublons.";
+
+/** Erreur destinée à l'utilisatrice : son message est renvoyé tel quel à Claude. */
+export class McpToolError extends Error {}
 
 export interface McpTool<Context> {
   name: string;
+  /** « write » crée ou modifie des données : Claude demande alors l'accord de l'utilisatrice. */
+  kind?: "read" | "write";
   title: string;
   description: string;
   input: z.ZodObject;
@@ -31,7 +36,7 @@ export function toolDefinitions<Context>(tools: McpTool<Context>[]) {
   return tools.map((tool) => {
     const inputSchema = z.toJSONSchema(tool.input) as Record<string, unknown>;
     delete inputSchema.$schema;
-    return { name: tool.name, title: tool.title, description: tool.description, inputSchema, annotations: { title: tool.title, readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } };
+    return { name: tool.name, title: tool.title, description: tool.description, inputSchema, annotations: { title: tool.title, readOnlyHint: tool.kind !== "write", destructiveHint: false, idempotentHint: tool.kind !== "write", openWorldHint: false } };
   });
 }
 
@@ -54,6 +59,7 @@ async function handleRequest<Context>(id: JsonRpcId, method: string, params: Rec
       const output = await tool.run(parsed.data as Record<string, unknown>, context);
       return { jsonrpc: "2.0", id, result: { content: [{ type: "text", text: JSON.stringify(output) }] } };
     } catch (error) {
+      if (error instanceof McpToolError) return { jsonrpc: "2.0", id, result: { isError: true, content: [{ type: "text", text: error.message }] } };
       console.error("Outil du connecteur en échec", { tool: tool.name, code: error instanceof Error ? error.message : "UNKNOWN" });
       return { jsonrpc: "2.0", id, result: { isError: true, content: [{ type: "text", text: "Les données de YrelCompta sont momentanément indisponibles. Réessayez plus tard." }] } };
     }

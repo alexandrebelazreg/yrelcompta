@@ -10,6 +10,11 @@ export interface McpSession {
   clientId: string;
 }
 
+/** Contexte transmis aux outils : la session authentifiée et l'adresse publique du site. */
+export interface McpToolContext extends McpSession {
+  origin: string;
+}
+
 export type McpAuthResult =
   | { ok: true; session: McpSession }
   | { ok: false; status: 401 | 403 | 503; error: "invalid_token" | "insufficient_scope" | "unavailable"; description: string };

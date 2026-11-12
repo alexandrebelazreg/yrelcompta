@@ -9,6 +9,7 @@ const read = (path: string) => readFileSync(join(root, path), "utf8");
 const mcpSources = [
   ...readdirSync(join(root, "src/lib/mcp")).filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts")).map((name) => `src/lib/mcp/${name}`),
   "src/app/api/mcp/route.ts",
+  "src/lib/mcp/write-tools.ts",
   "src/app/.well-known/oauth-protected-resource/[[...path]]/route.ts",
   "src/app/(auth)/oauth/consent/page.tsx",
   "src/app/(app)/parametres/claude/page.tsx",
@@ -36,10 +37,17 @@ describe("sécurité du connecteur Claude", () => {
     expect(read("src/app/api/mcp/route.ts")).toContain("runWithSupabaseClient(auth.session.supabase");
   });
 
-  it("n’expose que des outils en lecture seule", () => {
-    const tools = read("src/lib/mcp/tools.ts");
-    expect(tools).not.toMatch(/\.rpc\(|\.insert\(|\.update\(|\.delete\(|\.upsert\(/);
-    expect(read("src/lib/mcp/protocol.ts")).toContain("readOnlyHint: true");
+  it("garde les outils de lecture strictement en lecture seule", () => {
+    expect(read("src/lib/mcp/tools.ts")).not.toMatch(/\.rpc\(|\.insert\(|\.update\(|\.delete\(|\.upsert\(/);
+  });
+
+  it("limite les écritures aux RPC contrôlées autorisées, sans validation, paiement ni suppression", () => {
+    const writes = read("src/lib/mcp/write-tools.ts");
+    const rpcs = [...writes.matchAll(/\.rpc\("([a-z_]+)"/g)].map((match) => match[1]);
+    expect([...new Set(rpcs)].sort()).toEqual(["create_expense_draft", "create_material", "create_recurring_expense_template", "create_supplier", "save_product_with_recipe", "update_material"]);
+    expect(writes).not.toMatch(/\.insert\(|\.update\(|\.delete\(|\.upsert\(/);
+    expect(writes).not.toMatch(/validate_expense|record_expense|cancel_|archive_|delete_/);
+    expect(writes.match(/kind: "write"/g)).toHaveLength(6);
   });
 
   it("publie des métadonnées qui désignent Supabase Auth", () => {

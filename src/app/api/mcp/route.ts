@@ -3,11 +3,13 @@ import { authenticateMcpRequest } from "@/lib/mcp/auth";
 import { publicOrigin, wwwAuthenticate } from "@/lib/mcp/metadata";
 import { handleMcpMessage } from "@/lib/mcp/protocol";
 import { readOnlyTools } from "@/lib/mcp/tools";
+import { writeTools } from "@/lib/mcp/write-tools";
 import { runWithSupabaseClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 const MAX_BODY_BYTES = 1_000_000;
+const tools = [...readOnlyTools, ...writeTools];
 
 // Transport « Streamable HTTP » sans état : chaque POST reçoit une réponse JSON.
 // L'authentification repose uniquement sur le jeton Bearer (aucun cookie), ce qui exclut le CSRF.
@@ -31,7 +33,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, { status: 400 });
   }
 
-  const response = await runWithSupabaseClient(auth.session.supabase, () => handleMcpMessage(body, readOnlyTools, auth.session));
+  const response = await runWithSupabaseClient(auth.session.supabase, () => handleMcpMessage(body, tools, { ...auth.session, origin }));
   if (response === null) return new NextResponse(null, { status: 202 });
   return NextResponse.json(response, { headers: { "Cache-Control": "no-store" } });
 }

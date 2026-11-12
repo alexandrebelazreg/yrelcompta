@@ -48,6 +48,7 @@ export default async function ClaudeSettingsPage({ searchParams }: { searchParam
         <ul className="connector-list">{connectorPermissions.map((permission) => <li key={permission}>{permission}</li>)}</ul>
         <h2>Ce qu’il ne peut pas faire</h2>
         <ul className="connector-list">{connectorLimits.map((limit) => <li key={limit}>{limit}</li>)}</ul>
+        <p className="consent-note">Claude vous demande votre accord avant chaque création ou modification. Les écritures faites par Claude sont tracées dans le journal d’audit.</p>
       </Card>
     </section>
     <section className="dashboard-section" aria-labelledby="apps-heading">

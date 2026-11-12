@@ -4,8 +4,21 @@ YrelCompta expose un serveur MCP distant que l’utilisatrice ajoute dans Claude
 Claude agit **avec le compte de l’utilisatrice** : il reçoit un jeton OAuth délivré par Supabase Auth, et toutes
 les requêtes passent par RLS et les RPC existantes. Aucune clé `service_role` n’est utilisée.
 
-Cette première version est **en lecture seule** (matières, catégories, produits, fournisseurs, charges récurrentes,
-rentabilité). Pas d’accès aux ventes, factures, encaissements ni justificatifs.
+## Outils
+
+| Lecture | Écriture (accord demandé par Claude) |
+| --- | --- |
+| `list_material_categories`, `list_materials`, `list_products`, `list_suppliers`, `list_recurring_charges`, `get_profitability` | `create_supplier`, `create_material`, `update_material`, `create_product`, `create_recurring_charge`, `create_expense_draft` |
+
+Règles des écritures :
+- elles passent uniquement par les RPC déjà utilisées par l’application, après la **même validation Zod** que les formulaires ;
+- les dépenses sont créées **en brouillon** : l’utilisatrice les vérifie, joint le justificatif et les valide dans l’app ;
+- aucune validation, aucun paiement, remboursement, archivage forcé ni suppression ; pas d’accès aux ventes, factures,
+  encaissements ni justificatifs ;
+- garde-fous contre les doublons : fournisseur de même nom réutilisé, matière ou produit existant refusé, dépense
+  identique (date, montant, description) refusée sans confirmation explicite (`allow_duplicate`) ;
+- chaque écriture est tracée : la colonne `audit_logs.oauth_client_id` reçoit le `client_id` du jeton (migration
+  `20261112120000_audit_oauth_client.sql`, sans changement de RPC).
 
 ## Architecture
 
@@ -32,7 +45,7 @@ existantes (`listMaterials`, `getProfitabilityData`…) utilisent le jeton de l�
 5. Vérifier : `https://<projet>.supabase.co/.well-known/oauth-authorization-server/auth/v1` doit renvoyer du JSON
    (et non `feature_disabled`).
 
-Aucune migration ni variable d’environnement n’est nécessaire.
+La migration `20261112120000_audit_oauth_client.sql` (traçabilité) peut être appliquée avant ou après le déploiement.
 
 ## Connexion côté Claude
 
@@ -44,5 +57,6 @@ L’accès se retire depuis `/parametres/claude` (ou depuis Claude).
 
 - Les jetons Supabase ont l’audience `authenticated` : ils ne sont pas liés à la ressource (RFC 8707).
   L’exigence de `client_id` limite leur usage aux applications OAuth.
-- Les montants sont renvoyés formatés en euros ; l’écriture (brouillons de dépenses, matières…) fera l’objet
-  d’une seconde étape.
+- Les montants sont renvoyés formatés en euros ; Claude les envoie en euros TTC (« 12,50 »), convertis en centimes.
+- Une autorisation déjà accordée couvre automatiquement les nouveaux outils : l’utilisatrice est prévenue par la page
+  Paramètres → Claude.
