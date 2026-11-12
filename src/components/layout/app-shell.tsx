@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { signOutAction } from "@/app/actions";
+import { MobileTabBar } from "./mobile-tab-bar";
 import { Navigation } from "./navigation";
 
 export function AppShell({ children, email, businessName }: { children: ReactNode; email: string | null; businessName: string }) {
@@ -21,9 +22,8 @@ export function AppShell({ children, email, businessName }: { children: ReactNod
       </aside>
       <header className="mobile-header">
         <span className="mobile-brand-group"><span className="brand">YrelCompta</span><small>{businessName}</small></span>
-        <form action={signOutAction}><button type="submit">Déconnexion</button></form>
       </header>
-      <div className="mobile-nav"><Navigation /></div>
+      <MobileTabBar email={email} businessName={businessName} />
       <main className="app-content">{children}</main>
     </div>
   );

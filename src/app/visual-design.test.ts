@@ -6,6 +6,7 @@ const root = process.cwd();
 const styles = readFileSync(join(root, "src/app/globals.css"), "utf8");
 const shell = readFileSync(join(root, "src/components/layout/app-shell.tsx"), "utf8");
 const navigation = readFileSync(join(root, "src/components/layout/navigation.tsx"), "utf8");
+const mobileTabBar = readFileSync(join(root, "src/components/layout/mobile-tab-bar.tsx"), "utf8");
 const dashboard = readFileSync(join(root, "src/app/(app)/tableau-de-bord/page.tsx"), "utf8");
 const sales = readFileSync(join(root, "src/app/(app)/ventes/page.tsx"), "utf8");
 const expenses = readFileSync(join(root, "src/app/(app)/depenses/page.tsx"), "utf8");
@@ -23,7 +24,7 @@ const shopifyUi = readFileSync(join(root, "src/components/shopify/shopify-settin
 
 describe("identité visuelle Poudré chic", () => {
   it("déclare la palette sémantique et les dimensions communes", () => {
-    expect(styles).toContain("--color-bg: #fcfaf8");
+    expect(styles).toContain("--color-bg: #f5f2f3");
     expect(styles).toContain("--color-brand: #a65f78");
     expect(styles).toContain("--color-lavender: #e9e3f4");
     expect(styles).toContain("--color-sage: #dceadd");
@@ -54,13 +55,18 @@ describe("identité visuelle Poudré chic", () => {
   });
 
   it("maintient la navigation complète sur desktop et mobile", () => {
-    for (const label of ["Tableau de bord", "Ventes", "Factures", "Dépenses", "Produits", "Documents", "Registres", "Paramètres"]) {
+    for (const label of ["Aujourd’hui", "Ventes", "Factures", "Dépenses", "Produits", "Documents", "Registres", "Paramètres"]) {
       expect(navigation).toContain(`"${label}"`);
     }
     expect(shell).toContain('className="sidebar"');
     expect(shell).toContain('className="mobile-header"');
-    expect(shell).toContain('className="mobile-nav"');
+    expect(shell).toContain("<MobileTabBar");
     expect(shell).toContain("<Navigation />");
+    for (const label of ["Aujourd’hui", "Ventes", "Dépenses", "Produits", "Factures", "Documents", "Registres", "Paramètres"]) {
+      expect(mobileTabBar).toContain(`"${label}"`);
+    }
+    expect(mobileTabBar).toContain(">Plus<");
+    expect(mobileTabBar).toContain("signOutAction");
   });
 
   it("compacte le tableau de bord et la liste des ventes", () => {
@@ -149,8 +155,8 @@ describe("identité visuelle Poudré chic", () => {
   it("signale les brouillons récurrents dans les dépenses et le tableau de bord", () => {
     expect(expenses).toContain("expense.recurring_template_id");
     expect(expenses).toContain("Récurrente");
-    expect(dashboard).toContain("Charges récurrentes à vérifier");
-    expect(dashboard).toContain("recurringDraftCount > 0");
+    expect(dashboard).toContain("getRecurringDraftReviewCount");
+    expect(dashboard).toContain("recurringDraftCount: tasks.recurringDraftCount");
     expect(dashboardQueries).toContain('.eq("status", "draft")');
     expect(dashboardQueries).toContain('.not("recurring_template_id", "is", null)');
   });

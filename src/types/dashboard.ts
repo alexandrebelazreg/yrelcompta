@@ -11,6 +11,8 @@ export interface DashboardMonth {
 }
 
 export interface DashboardPayment {
+  /** Date d’encaissement (AAAA-MM-JJ), utilisée pour la répartition jour par jour. */
+  receivedOn?: string;
   grossAmountCents: number;
   platformFeeCents: number;
 }

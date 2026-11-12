@@ -1,3 +1,4 @@
+import { FlashToast } from "@/components/ui/flash-toast";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { InfoTip } from "@/components/ui/info-tip";
@@ -76,7 +77,7 @@ export default async function DeclarationsPage({ searchParams }: { searchParams:
   return <>
     <Link className="back-link" href="/registres">← Registres</Link>
     <header className="page-header"><div className="info-line"><h1>Déclarations de chiffre d’affaires</h1><InfoTip label="À propos du suivi des déclarations">Préparez les périodes et conservez chaque révision, sans transmission automatique à l’Urssaf.</InfoTip></div><form className="year-filter" method="get"><label htmlFor="declaration-year">Année</label><input className="input" id="declaration-year" name="annee" type="number" min="1900" max="9999" defaultValue={year}/><button className="button" type="submit">Afficher</button></form></header>
-    {message && <p className="form-message success">{message}</p>}{error && <p className="form-message" role="alert">{error}</p>}
+    {message && <FlashToast message={message}/>}{error && <p className="form-message" role="alert">{error}</p>}
     <section className="declaration-settings card"><div className="info-line"><h2>Paramètres déclaratifs</h2><InfoTip label="À propos de la périodicité déclarative">Cette périodicité doit correspondre à celle enregistrée auprès de l’Urssaf.</InfoTip></div><dl className="detail-list"><div><dt>Périodicité configurée</dt><dd>{data.settings.declarationPeriod === "monthly" ? "Mensuelle" : "Trimestrielle"}</dd></div><div><dt>Régime de TVA</dt><dd>{data.settings.vatRegime === "franchise" ? "Franchise en base" : "Assujettie"}</dd></div><div><dt>Date de début d’activité</dt><dd>{data.settings.activityStartedOn ? formatFrenchDate(data.settings.activityStartedOn) : "Non renseignée"}</dd></div></dl>
       <form action={setActivityStartedOnAction} className="activity-date-form"><div className="field"><label htmlFor="activity-started-on">Date légale de début d’activité</label><input className="input" id="activity-started-on" name="activityStartedOn" type="date" max={today} defaultValue={data.settings.activityStartedOn ?? ""} required/></div><SubmitButton>{data.settings.activityStartedOn ? "Corriger la date" : "Enregistrer la date"}</SubmitButton></form>
       {data.settings.activityStartedOn && <small>Cette date ne pourra plus être modifiée après l’enregistrement d’une déclaration.</small>}

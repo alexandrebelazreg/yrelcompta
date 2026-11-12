@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
+import { Icon } from "./icon";
+import { useSheetDrag } from "./use-sheet-drag";
 
 /**
  * Bouton « Modifier » ouvrant le formulaire dans une fenêtre centrée plutôt que dans la ligne du tableau.
@@ -11,6 +13,12 @@ export function EditDialog({ title, label = "Modifier", children }: { title: str
   const dialogRef = useRef<HTMLDialogElement>(null);
   const dirtyRef = useRef(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Sur mobile, la fenêtre est une feuille : glisser l’en-tête vers le bas la ferme, sauf saisie en cours.
+  const { handleProps } = useSheetDrag(panelRef, {
+    canDismiss: () => { if (dirtyRef.current) { setConfirmingDiscard(true); return false; } return true; },
+    close: () => dialogRef.current?.close(),
+  });
 
   function open() {
     dirtyRef.current = false;
@@ -42,15 +50,17 @@ export function EditDialog({ title, label = "Modifier", children }: { title: str
       onCancel={(event) => { event.preventDefault(); requestClose(); }}
     >
       <div
+        ref={panelRef}
         className="edit-dialog-panel"
         onInput={() => { dirtyRef.current = true; }}
         onChange={() => { dirtyRef.current = true; }}
         // Une fois envoyée, la saisie n’est plus considérée comme en cours.
         onSubmit={() => { dirtyRef.current = false; setConfirmingDiscard(false); }}
       >
-        <header className="edit-dialog-header">
+        <header className="edit-dialog-header" {...handleProps}>
+          <span className="sheet-grabber" aria-hidden="true" />
           <h2>{title}</h2>
-          <button className="edit-dialog-close" type="button" aria-label="Fermer" onClick={requestClose}>×</button>
+          <button className="edit-dialog-close" type="button" aria-label="Fermer" onClick={requestClose}><Icon name="close" /></button>
         </header>
         {confirmingDiscard && <div className="discard-banner" role="alert">
           <p>Vos modifications ne sont pas enregistrées.</p>
