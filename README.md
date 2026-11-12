@@ -49,7 +49,7 @@ Avec Supabase CLI, après avoir lié le projet :
 
 ```bash
 supabase link --project-ref VOTRE_REFERENCE
-supabase db push
+supabase db push --remote
 ```
 
 La migration initiale crée `profiles`, `businesses`, `business_members`, `business_settings` et `audit_logs`. La migration `20260805010000_sales_payments.sql` ajoute les ventes, lignes, encaissements et remboursements. La migration `20260805180000_expenses_documents.sql` ajoute les dépenses, fournisseurs, paiements, remboursements fournisseurs, justificatifs privés et modèles récurrents. La migration `20260807120000_registers_declarations.sql` prépare la date légale de début d’activité et l’historique immuable des déclarations. La migration `20260807220000_invoicing_documents.sql` prépare la facturation commerciale, les avoirs et leurs compteurs transactionnels. La migration `20260808120000_fiscal_social_rules.sql` ajoute les règles fiscales/sociales globales versionnées, les profils d’entreprise append-only et les snapshots d’estimation des nouvelles déclarations ; ces migrations doivent être relues avant toute application.
@@ -57,9 +57,11 @@ La migration initiale crée `profiles`, `businesses`, `business_members`, `busin
 Avant d’appliquer une nouvelle migration sur un projet lié, inspectez toujours le plan :
 
 ```bash
-npx supabase db push --dry-run
-npx supabase db push
+npx supabase db push --dry-run --remote
+npx supabase db push --remote
 ```
+
+Depuis la CLI Supabase v3, `db push` vise par défaut une base locale : l’option `--remote` est indispensable pour le projet lié. Si une migration a été appliquée à la main (SQL Editor), enregistrez-la dans l’historique avec `npx supabase migration repair --status applied <horodatage> --remote` avant le `db push`, sinon elle serait rejouée.
 
 Le `--dry-run` doit toujours être relu avant l’application future. Cette commande ne doit jamais être lancée automatiquement par l’application ou par une tâche de développement.
 

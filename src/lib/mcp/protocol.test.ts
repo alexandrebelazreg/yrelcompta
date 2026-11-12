@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { handleMcpMessage, SERVER_INFO, toolDefinitions, type McpTool } from "./protocol";
+import { handleMcpMessage, McpToolError, SERVER_INFO, toolDefinitions, type McpTool } from "./protocol";
 
 const run = vi.fn(async (input: Record<string, unknown>, context: { businessId: string }) => ({ entreprise: context.businessId, recherche: input.search ?? null }));
 const tools: McpTool<{ businessId: string }>[] = [
   { name: "list_things", title: "Choses", description: "Liste des choses.", input: z.object({ search: z.string().max(5).optional() }), run },
   { name: "broken", title: "Cassé", description: "Échoue.", input: z.object({}), run: async () => { throw new Error("SECRET_DETAIL"); } },
+  { name: "save_thing", kind: "write", title: "Enregistrer", description: "Écrit.", input: z.object({}), run: async () => { throw new McpToolError("Ce nom existe déjà."); } },
 ];
 const context = { businessId: "biz-1" };
 const call = (body: unknown) => handleMcpMessage(body, tools, context);
@@ -52,6 +53,14 @@ describe("protocole MCP", () => {
     expect(response.result.content[0].text).not.toContain("SECRET_DETAIL");
   });
 
+  it("annonce les outils d’écriture comme non lecture seule", () => {
+    expect(toolDefinitions(tools).find((tool) => tool.name === "save_thing")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false, idempotentHint: false });
+  });
+
+  it("transmet tel quel un message d’erreur destiné à l’utilisatrice", async () => {
+    expect(await call({ jsonrpc: "2.0", id: 10, method: "tools/call", params: { name: "save_thing" } })).toMatchObject({ result: { isError: true, content: [{ text: "Ce nom existe déjà." }] } });
+  });
+
   it("renvoie les erreurs JSON-RPC standard", async () => {
     expect(await call({ jsonrpc: "2.0", id: 7, method: "resources/list" })).toMatchObject({ error: { code: -32601 } });
     expect(await call({ jsonrpc: "2.0", id: 8, method: "tools/call", params: { name: "inconnu" } })).toMatchObject({ error: { code: -32602 } });
@@ -65,6 +74,6 @@ describe("protocole MCP", () => {
   });
 
   it("génère des définitions sans dépendre du serveur", () => {
-    expect(toolDefinitions(tools).map((tool) => tool.name)).toEqual(["list_things", "broken"]);
+    expect(toolDefinitions(tools).map((tool) => tool.name)).toEqual(["list_things", "broken", "save_thing"]);
   });
 });
