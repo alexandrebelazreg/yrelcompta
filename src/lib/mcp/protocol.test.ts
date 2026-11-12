@@ -61,6 +61,18 @@ describe("protocole MCP", () => {
     expect(await call({ jsonrpc: "2.0", id: 10, method: "tools/call", params: { name: "save_thing" } })).toMatchObject({ result: { isError: true, content: [{ text: "Ce nom existe déjà." }] } });
   });
 
+  it("décrit les champs transformés par Zod avec le type envoyé par Claude", async () => {
+    const transformed: McpTool<{ businessId: string }> = { name: "with_amount", title: "Montant", description: "Champ transformé.", input: z.object({ amount: z.union([z.string(), z.number()]).transform(String) }), run };
+    const response = await handleMcpMessage({ jsonrpc: "2.0", id: 11, method: "tools/list" }, [transformed], context) as { result: { tools: Array<{ inputSchema: { properties: { amount: { anyOf: unknown[] } } } }> } };
+    expect(response.result.tools[0].inputSchema.properties.amount.anyOf).toEqual([{ type: "string" }, { type: "number" }]);
+  });
+
+  it("répond par une erreur JSON-RPC, jamais par une exception, quand une requête échoue", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const broken = { name: "x", title: "x", description: "x", input: { safeParse: () => { throw new Error("boom"); } } } as unknown as McpTool<{ businessId: string }>;
+    expect(await handleMcpMessage({ jsonrpc: "2.0", id: 12, method: "tools/call", params: { name: "x" } }, [broken], context)).toMatchObject({ id: 12, error: { code: -32603 } });
+  });
+
   it("renvoie les erreurs JSON-RPC standard", async () => {
     expect(await call({ jsonrpc: "2.0", id: 7, method: "resources/list" })).toMatchObject({ error: { code: -32601 } });
     expect(await call({ jsonrpc: "2.0", id: 8, method: "tools/call", params: { name: "inconnu" } })).toMatchObject({ error: { code: -32602 } });

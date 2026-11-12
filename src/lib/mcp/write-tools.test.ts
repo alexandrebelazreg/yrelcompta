@@ -32,6 +32,14 @@ beforeEach(() => {
 });
 
 describe("outils d’écriture du connecteur", () => {
+  it("publie la liste complète des outils avec des schémas JSON objets", async () => {
+    const response = await handleMcpMessage({ jsonrpc: "2.0", id: 1, method: "tools/list" }, writeTools, context() as never) as { result: { tools: Array<{ name: string; inputSchema: Record<string, unknown> }> } };
+    expect(response.result.tools.map((tool) => tool.name)).toEqual(writeTools.map((tool) => tool.name));
+    for (const tool of response.result.tools) expect(tool.inputSchema, tool.name).toMatchObject({ type: "object", properties: expect.any(Object) });
+    const material = response.result.tools.find((tool) => tool.name === "create_material")?.inputSchema as { properties: { package_cost: { anyOf: Array<{ type: string }> } } };
+    expect(material.properties.package_cost.anyOf.map((option) => option.type)).toEqual(["string", "number"]);
+  });
+
   it("crée une matière dans une catégorie existante avec la référence suivante et des montants en centimes", async () => {
     const result = await call("create_material", { name: "Chaîne vénitienne", category: "chaîne principale", supplier: "perles & co", color: "Argent", unit: "centimeter", package_quantity: "1,5", package_cost: "12,50" });
     expect(result.isError).toBe(false);
