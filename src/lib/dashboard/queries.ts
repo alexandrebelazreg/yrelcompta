@@ -54,11 +54,12 @@ async function loadData(businessId: string, month: DashboardMonth): Promise<Dash
 
   const payments = loadAllDashboardPages(async (from, to) => {
     const { data, error } = await supabase.from("payments")
-      .select("gross_amount_cents,platform_fee_cents")
+      .select("received_on,gross_amount_cents,platform_fee_cents")
       .eq("business_id", businessId).gte("received_on", month.start).lt("received_on", month.end)
       .order("id", { ascending: true }).range(from, to);
     return { data: data as unknown as Array<Record<string, unknown>> | null, error };
   }, logLoadError).then((rows): DashboardPayment[] => rows.map((row) => ({
+    receivedOn: String(row.received_on),
     grossAmountCents: toSafeIntegerAmount(row.gross_amount_cents),
     platformFeeCents: toSafeIntegerAmount(row.platform_fee_cents),
   })));

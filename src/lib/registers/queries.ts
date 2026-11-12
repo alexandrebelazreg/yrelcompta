@@ -23,6 +23,8 @@ import {
   declarationUiStatus,
   generateDeclarationPeriods,
   latestDeclaredAnnualTotal,
+  pendingDeclarationPeriods,
+  type PendingDeclarationPeriod,
 } from "./calculations";
 import { loadAllRegisterPages } from "./pagination";
 
@@ -313,6 +315,21 @@ export async function getDeclarationsPageData(businessId: string, year: number, 
       annualCustomerRefundsCents: annualSuggestion.customerRefundsCents,
       annualDeclaredCents: latestDeclaredAnnualTotal(declarations),
     };
+  } catch (error) {
+    if (!(error instanceof Error) || error.message !== FAILURE_CODE) logLoadError(FAILURE_CODE);
+    throw new Error(FAILURE_CODE);
+  }
+}
+
+/** Périodes de déclaration à faire ou en retard (année en cours et précédente), sans charger les flux. */
+export async function getPendingDeclarationPeriods(businessId: string, now = new Date()): Promise<PendingDeclarationPeriod[]> {
+  try {
+    const today = getTodayInParis(now);
+    const year = Number(today.slice(0, 4));
+    const [settings, previous, current] = await Promise.all([
+      getSettings(businessId), getDeclarations(businessId, year - 1), getDeclarations(businessId, year),
+    ]);
+    return pendingDeclarationPeriods(settings.activityStartedOn, settings.declarationPeriod, [...previous, ...current], today);
   } catch (error) {
     if (!(error instanceof Error) || error.message !== FAILURE_CODE) logLoadError(FAILURE_CODE);
     throw new Error(FAILURE_CODE);

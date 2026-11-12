@@ -3,13 +3,18 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { InfoTip } from "@/components/ui/info-tip";
 import { MetricCard } from "@/components/ui/metric-card";
 import { getAuthenticatedContext } from "@/lib/auth/context";
-import { calculateDashboardMetrics, resolveDashboardMonth } from "@/lib/dashboard/calculations";
+import { Icon, type IconName } from "@/components/ui/icon";
+import { calculateDashboardMetrics, dailyCollectedCents, fixedCostCoveragePercent, resolveDashboardMonth } from "@/lib/dashboard/calculations";
 import { fixedCostCoverageMessage } from "@/lib/dashboard/presentation";
 import { getDashboardData, getRecurringDraftReviewCount } from "@/lib/dashboard/queries";
 import { formatEuroCents } from "@/lib/sales/calculations";
 import { saleChannelLabels } from "@/lib/sales/labels";
+import { getPendingDeclarationPeriods } from "@/lib/registers/queries";
+import { getTodayDraftCounts } from "@/lib/today/queries";
+import { buildTodayTasks, formatTodayLabel, type TodayTask } from "@/lib/today/tasks";
+import { getTodayInParis } from "@/lib/utils/date";
 import { formatFrenchDate } from "@/lib/utils/format";
-import type { BreakEvenUnavailableReason, DashboardMetrics, DashboardRecentSale } from "@/types/dashboard";
+import type { BreakEvenUnavailableReason, DashboardMetrics, DashboardMonth, DashboardRecentSale } from "@/types/dashboard";
 import { fiscalReserveUnavailableMessages, formatBasisPoints } from "@/lib/fiscal-social/presentation";
 
 interface DashboardPageProps {
@@ -45,25 +50,87 @@ function DashboardSectionHeading({ id, title, help, action }: { id: string; titl
   return <div className="section-heading dashboard-section-heading"><div className="info-line"><h2 id={id}>{title}</h2>{help && <InfoTip label={`En savoir plus sur ${title}`}>{help}</InfoTip>}</div>{action}</div>;
 }
 
-function DashboardContent({ metrics, recentSales, recurringDraftCount }: { metrics: DashboardMetrics; recentSales: DashboardRecentSale[]; recurringDraftCount: number }) {
+
+const quickActions: Array<{ href: string; label: string; icon: IconName; primary?: boolean }> = [
+  { href: "/ventes/nouvelle", label: "Vente", icon: "plus", primary: true },
+  { href: "/depenses/nouvelle", label: "Dépense", icon: "expenses" },
+  { href: "/documents", label: "Justificatif", icon: "camera" },
+];
+
+/** Encaissé du mois : le chiffre principal, son détail et sa répartition jour par jour. */
+function MonthHero({ metrics, month, days, coverage }: { metrics: DashboardMetrics; month: DashboardMonth; days: number[]; coverage: number | null }) {
+  const max = Math.max(1, ...days);
+  const today = getTodayInParis();
+  const todayIndex = today.startsWith(month.key) ? Number(today.slice(8, 10)) - 1 : -1;
+  return <section className="today-hero" aria-labelledby="today-hero-label">
+    <div className="today-hero-main">
+      <div className="info-line"><span id="today-hero-label" className="today-hero-label">Encaissé en {month.label}</span><InfoTip label="Détail des encaissements">Brut encaissé moins remboursements clients : {formatEuroCents(metrics.cash.grossCollectedCents)} encaissés, {formatEuroCents(metrics.cash.customerRefundedCents)} remboursés.</InfoTip></div>
+      <strong className="today-hero-value">{formatEuroCents(metrics.cash.revenueCollectedCents)}</strong>
+      <span className="today-hero-sub">{formatEuroCents(metrics.cash.grossCollectedCents)} encaissés · {formatEuroCents(metrics.cash.customerRefundedCents)} remboursés</span>
+    </div>
+    <div className="today-hero-side">
+      <div className="today-bars" aria-hidden="true">
+        {days.map((cents, index) => <span key={index} className={index === todayIndex ? "is-today" : cents > 0 ? "has-value" : undefined} style={{ height: `${Math.max(4, Math.round((cents / max) * 100))}%` }} />)}
+      </div>
+      {coverage === null
+        ? <p className="today-coverage-empty">{metrics.fixedCostCoverage.unavailableReason === "fixed-costs-not-configured" ? <><Link href="/depenses/recurrences">Renseignez vos charges fixes</Link> pour suivre leur couverture.</> : fixedCostCoverageMessage(metrics.fixedCostCoverage.unavailableReason)}</p>
+        : <div className="today-coverage">
+            <div><span>Charges fixes du mois couvertes par la marge</span><strong>{coverage} %</strong></div>
+            <div className="today-progress" role="progressbar" aria-valuenow={Math.min(coverage, 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Charges fixes couvertes"><span style={{ width: `${Math.min(coverage, 100)}%` }} /></div>
+          </div>}
+    </div>
+  </section>;
+}
+
+function TaskList({ tasks }: { tasks: TodayTask[] | null }) {
+  return <section className="today-tasks" aria-labelledby="today-tasks-heading">
+    <div className="today-section-title"><h2 id="today-tasks-heading">À faire</h2>{tasks && tasks.length > 0 && <span className="today-count">{tasks.length}</span>}</div>
+    {tasks === null
+      ? <p className="today-panel today-empty">La liste n’a pas pu être chargée. Réessayez dans quelques instants.</p>
+      : tasks.length === 0
+        ? <div className="today-panel today-empty"><Icon name="check" /><p><strong>Tout est à jour.</strong> Aucune vente, dépense ou déclaration n’attend votre action.</p></div>
+        : <ul className="today-panel today-task-list">
+            {tasks.map((task) => <li key={task.id} className="today-task">
+              <span className={`today-dot today-dot-${task.tone}`} aria-hidden="true" />
+              <div><strong>{task.title}</strong><span>{task.detail}</span></div>
+              <Link className="button-link today-task-action" href={task.href}>{task.action}</Link>
+            </li>)}
+          </ul>}
+  </section>;
+}
+
+function MonthSummary({ metrics, recentSales }: { metrics: DashboardMetrics; recentSales: DashboardRecentSale[] }) {
+  const rows = [
+    { label: "Commissions", hint: "Suivies à part, jamais en dépense", value: metrics.cash.platformFeesCents },
+    { label: "Dépenses professionnelles nettes", hint: "Part pro payée moins remboursements", value: metrics.cash.netExpensesCents },
+    { label: "Flux net suivi", hint: "Pas un bénéfice comptable ou fiscal", value: metrics.cash.trackedCashCents },
+  ];
+  return <aside className="today-summary" aria-label="Ce mois-ci">
+    <div className="today-section-title"><h2>Ce mois-ci</h2></div>
+    <dl className="today-panel today-summary-list">
+      {rows.map((row) => <div key={row.label}><dt><span>{row.label}</span><small>{row.hint}</small></dt><dd>{formatEuroCents(row.value)}</dd></div>)}
+    </dl>
+    <div className="today-section-title"><h2>Dernières ventes</h2><Link href="/ventes">Tout voir</Link></div>
+    {recentSales.length === 0
+      ? <p className="today-panel today-empty">Vos dernières ventes apparaîtront ici après leur création.</p>
+      : <ul className="today-panel today-sales">
+          {recentSales.map((sale) => <li key={sale.id}><Link href={`/ventes/${sale.id}`}><span><strong>{sale.reference}</strong><small>{formatFrenchDate(sale.orderedOn)} · {saleChannelLabels[sale.channel]}</small></span><span className="today-amount">{formatEuroCents(sale.totalCents)}</span></Link></li>)}
+        </ul>}
+  </aside>;
+}
+
+function MonthAnalysis({ metrics, monthKey }: { metrics: DashboardMetrics; monthKey: string }) {
   const profitabilityAvailable = metrics.profitability.completeCount > 0;
   const referenceAvailable = metrics.reference.saleCount > 0;
   const breakEvenReason = metrics.breakEven.unavailableReason
     ? unavailableReasons[metrics.breakEven.unavailableReason]
     : "Calculé à partir de la marge pondérée des 90 derniers jours du mois sélectionné.";
 
-  return <>
-    {recurringDraftCount > 0 && <aside className="recurring-draft-notice"><div><span>Charges récurrentes à vérifier</span><strong>{recurringDraftCount}</strong></div><Link className="secondary-link" href="/depenses?statut=draft">Voir les dépenses</Link></aside>}
-    <section className="dashboard-section" aria-labelledby="cash-heading">
-      <DashboardSectionHeading id="cash-heading" title="Trésorerie du mois" help={<>Détail : {formatEuroCents(metrics.cash.grossCollectedCents)} encaissés, {formatEuroCents(metrics.cash.customerRefundedCents)} remboursés aux clientes, {formatEuroCents(metrics.cash.expensesPaidCents)} payés et {formatEuroCents(metrics.cash.expenseRefundedCents)} remboursés par les fournisseurs.</>} />
-      <div className="metric-grid">
-        <MetricCard label="Chiffre d’affaires encaissé" value={formatEuroCents(metrics.cash.revenueCollectedCents)} help="Brut encaissé moins remboursements clients." />
-        <MetricCard label="Commissions" value={formatEuroCents(metrics.cash.platformFeesCents)} help="Suivies séparément, sans création de dépense." />
-        <MetricCard label="Dépenses professionnelles nettes" value={formatEuroCents(metrics.cash.netExpensesCents)} help="Part professionnelle payée moins remboursements fournisseurs." />
-        <MetricCard label="Flux net suivi" value={formatEuroCents(metrics.cash.trackedCashCents)} help="Encaissements nets de remboursements, moins commissions et dépenses professionnelles payées. Ce montant n’est pas un bénéfice comptable ou fiscal." />
-      </div>
-    </section>
-
+  return <section className="today-analysis" aria-labelledby="analysis-heading">
+    <div className="today-analysis-header">
+      <div><h2 id="analysis-heading">Analyse du mois</h2><p>Rentabilité, réserve estimée et seuil, pour le mois choisi.</p></div>
+      <MonthSelector monthKey={monthKey} />
+    </div>
     <section className="dashboard-section" aria-labelledby="profitability-heading">
       <DashboardSectionHeading id="profitability-heading" title="Rentabilité de fabrication du mois" help="Indicateurs issus des ventes validées et de leurs snapshots historiques." />
       <div className="metric-grid">
@@ -101,45 +168,54 @@ function DashboardContent({ metrics, recentSales, recurringDraftCount }: { metri
         <MetricCard label="Écart après couverture des charges fixes" value={moneyOrUnavailable(metrics.fixedCostCoverage.deltaCents)} help={metrics.fixedCostCoverage.deltaCents === null ? undefined : fixedCostCoverageMessage(metrics.fixedCostCoverage.unavailableReason)} secondary={metrics.fixedCostCoverage.deltaCents === null ? fixedCostCoverageMessage(metrics.fixedCostCoverage.unavailableReason) : undefined} />
       </div>
     </section>
-
-    <section className="dashboard-section" aria-labelledby="documents-heading">
-      <DashboardSectionHeading id="documents-heading" title="Justificatifs manquants" action={<Link className="secondary-link" href="/documents">Ouvrir les documents</Link>} />
-      <MetricCard label="Dépenses validées sans document" value={metrics.missingDocumentCount} help="Décompte global, indépendant du mois sélectionné." />
-    </section>
-
-    {recentSales.length === 0 ? <EmptyState title="Votre activité commence ici" description="Vos dernières ventes apparaîtront ici après leur création." /> : <section className="recent-sales">
-      <div className="section-heading"><h2>Dernières ventes</h2><Link className="secondary-link" href="/ventes">Voir toutes les ventes</Link></div>
-      {recentSales.map((sale) => <Link href={`/ventes/${sale.id}`} className="recent-sale" key={sale.id}><div><strong>{sale.reference}</strong><span>{formatFrenchDate(sale.orderedOn)} · {saleChannelLabels[sale.channel]}</span></div><strong>{formatEuroCents(sale.totalCents)}</strong></Link>)}
-    </section>}
-  </>;
+  </section>;
 }
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const [{ context }, params] = await Promise.all([getAuthenticatedContext(), searchParams]);
   const month = resolveDashboardMonth(params.mois);
-  const firstName = context.profile?.first_name || "Bienvenue";
+  const firstName = context.profile?.first_name;
+  const header = <header className="today-header">
+    <div>
+      <p className="today-date">{firstName ? `Bonjour ${firstName} · ` : ""}{formatTodayLabel()}</p>
+      <h1>Aujourd’hui</h1>
+    </div>
+    <nav className="today-quick" aria-label="Ajouter">
+      {quickActions.map((action) => <Link key={action.href} className={action.primary ? "button-link" : "secondary-link"} href={action.href}><Icon name={action.icon} />{action.label}</Link>)}
+    </nav>
+  </header>;
 
-  let content: React.ReactNode;
   if (!context.business) {
-    content = <EmptyState title="Entreprise non configurée" description="Terminez la configuration de votre entreprise pour afficher ses indicateurs." />;
-  } else {
-    let dashboard: { metrics: DashboardMetrics; recentSales: DashboardRecentSale[]; recurringDraftCount: number } | null = null;
-    try {
-      const [source, recurringDraftCount] = await Promise.all([
-        getDashboardData(context.business.id, month),
-        getRecurringDraftReviewCount(context.business.id),
-      ]);
-      dashboard = { metrics: calculateDashboardMetrics(source), recentSales: source.recentSales, recurringDraftCount };
-    } catch {
-      dashboard = null;
-    }
-    content = dashboard
-      ? <DashboardContent metrics={dashboard.metrics} recentSales={dashboard.recentSales} recurringDraftCount={dashboard.recurringDraftCount} />
-      : <div className="dashboard-error" role="alert"><h2>Données indisponibles</h2><p>Le tableau de bord n’a pas pu être chargé. Aucun indicateur partiel n’est affiché. Réessayez dans quelques instants.</p></div>;
+    return <>{header}<EmptyState title="Entreprise non configurée" description="Terminez la configuration de votre entreprise pour afficher ses indicateurs." /></>;
+  }
+  const businessId = context.business.id;
+
+  const [dashboard, tasks] = await Promise.all([
+    getDashboardData(businessId, month).then((source) => ({ source, metrics: calculateDashboardMetrics(source) })).catch(() => null),
+    Promise.all([getTodayDraftCounts(businessId), getRecurringDraftReviewCount(businessId), getPendingDeclarationPeriods(businessId)])
+      .then(([drafts, recurringDraftCount, pendingDeclarations]) => ({ drafts, recurringDraftCount, pendingDeclarations }))
+      .catch(() => null),
+  ]);
+
+  if (!dashboard) {
+    return <>{header}<div className="dashboard-error" role="alert"><h2>Données indisponibles</h2><p>Le tableau de bord n’a pas pu être chargé. Aucun indicateur partiel n’est affiché. Réessayez dans quelques instants.</p></div></>;
   }
 
+  const todayTasks = tasks === null ? null : buildTodayTasks({
+    draftSaleCount: tasks.drafts.draftSaleCount,
+    draftExpenseCount: tasks.drafts.draftExpenseCount,
+    recurringDraftCount: tasks.recurringDraftCount,
+    missingDocumentCount: dashboard.metrics.missingDocumentCount,
+    pendingDeclarations: tasks.pendingDeclarations,
+  });
+
   return <>
-    <header className="page-header"><div><h1>{firstName === "Bienvenue" ? firstName : `Bonjour ${firstName}`}</h1><p>{context.business?.name} · {month.label}</p></div><MonthSelector monthKey={month.key} /></header>
-    {content}
+    {header}
+    <MonthHero metrics={dashboard.metrics} month={month} days={dailyCollectedCents(dashboard.source.payments, month)} coverage={fixedCostCoveragePercent(dashboard.metrics)} />
+    <div className="today-columns">
+      <TaskList tasks={todayTasks} />
+      <MonthSummary metrics={dashboard.metrics} recentSales={dashboard.source.recentSales} />
+    </div>
+    <MonthAnalysis metrics={dashboard.metrics} monthKey={month.key} />
   </>;
 }

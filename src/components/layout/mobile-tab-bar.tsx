@@ -8,7 +8,7 @@ import { Icon } from "@/components/ui/icon";
 import { useSheetDrag } from "@/components/ui/use-sheet-drag";
 
 const primaryTabs = [
-  ["/tableau-de-bord", "Synthèse", "dashboard"], ["/ventes", "Ventes", "sales"], ["/depenses", "Dépenses", "expenses"], ["/produits", "Produits", "products"],
+  ["/tableau-de-bord", "Aujourd’hui", "today"], ["/ventes", "Ventes", "sales"], ["/depenses", "Dépenses", "expenses"], ["/produits", "Produits", "products"],
 ] as const;
 
 const moreLinks = [

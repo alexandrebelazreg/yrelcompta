@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Icon, type IconName } from "@/components/ui/icon";
 
 const links: Array<[string, string, IconName]> = [
-  ["/tableau-de-bord", "Tableau de bord", "dashboard"], ["/ventes", "Ventes", "sales"], ["/factures", "Factures", "invoices"],
+  ["/tableau-de-bord", "Aujourd’hui", "today"], ["/ventes", "Ventes", "sales"], ["/factures", "Factures", "invoices"],
   ["/depenses", "Dépenses", "expenses"], ["/produits", "Produits", "products"], ["/rentabilite", "Rentabilité", "profitability"],
   ["/documents", "Documents", "documents"], ["/registres", "Registres", "registers"],
   ["/parametres", "Paramètres", "settings"],
