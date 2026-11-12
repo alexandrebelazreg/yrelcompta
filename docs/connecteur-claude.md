@@ -8,13 +8,14 @@ les requêtes passent par RLS et les RPC existantes. Aucune clé `service_role` 
 
 | Lecture | Écriture (accord demandé par Claude) |
 | --- | --- |
-| `list_material_categories`, `list_materials`, `list_products`, `list_suppliers`, `list_recurring_charges`, `get_profitability` | `create_supplier`, `create_material`, `update_material`, `create_product`, `create_recurring_charge`, `create_expense_draft` |
+| `list_material_categories`, `list_materials`, `list_products`, `list_suppliers`, `list_recurring_charges`, `get_profitability`, `list_sales`, `get_sale`, `get_sales_summary`, `list_invoices`, `get_invoice` | `create_supplier`, `create_material`, `update_material`, `create_product`, `create_recurring_charge`, `create_expense_draft`, `create_sale_draft` |
 
 Règles des écritures :
 - elles passent uniquement par les RPC déjà utilisées par l’application, après la **même validation Zod** que les formulaires ;
-- les dépenses sont créées **en brouillon** : l’utilisatrice les vérifie, joint le justificatif et les valide dans l’app ;
-- aucune validation, aucun paiement, remboursement, archivage forcé ni suppression ; pas d’accès aux ventes, factures,
-  encaissements ni justificatifs ;
+- les ventes et les dépenses sont créées **en brouillon** : l’utilisatrice les vérifie et les valide dans l’app ;
+- les factures et avoirs sont **en lecture seule** : leur émission (numérotation définitive) reste dans l’app, comme les encaissements ;
+- les acheteurs ne sont exposés que par leur nom : ni adresse, ni e-mail, ni SIREN, ni numéro de TVA ;
+- aucune validation, aucun paiement, encaissement, remboursement, annulation ni suppression ; pas d’accès aux justificatifs ;
 - garde-fous contre les doublons : fournisseur de même nom réutilisé, matière ou produit existant refusé, dépense
   identique (date, montant, description) refusée sans confirmation explicite (`allow_duplicate`) ;
 - chaque écriture est tracée : la colonne `audit_logs.oauth_client_id` reçoit le `client_id` du jeton (migration

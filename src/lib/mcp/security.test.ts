@@ -10,6 +10,7 @@ const mcpSources = [
   ...readdirSync(join(root, "src/lib/mcp")).filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts")).map((name) => `src/lib/mcp/${name}`),
   "src/app/api/mcp/route.ts",
   "src/lib/mcp/write-tools.ts",
+  "src/lib/mcp/sales-tools.ts",
   "src/app/.well-known/oauth-protected-resource/[[...path]]/route.ts",
   "src/app/(auth)/oauth/consent/page.tsx",
   "src/app/(app)/parametres/claude/page.tsx",
@@ -48,6 +49,19 @@ describe("sécurité du connecteur Claude", () => {
     expect(writes).not.toMatch(/\.insert\(|\.update\(|\.delete\(|\.upsert\(/);
     expect(writes).not.toMatch(/validate_expense|record_expense|cancel_|archive_|delete_/);
     expect(writes.match(/kind: "write"/g)).toHaveLength(6);
+  });
+
+  it("n’autorise que les brouillons de vente, sans facture, encaissement ni validation", () => {
+    const sales = read("src/lib/mcp/sales-tools.ts");
+    expect([...new Set([...sales.matchAll(/\.rpc\("([a-z_]+)"/g)].map((match) => match[1]))]).toEqual(["create_sale_draft"]);
+    expect(sales).not.toMatch(/\.insert\(|\.update\(|\.delete\(|\.upsert\(/);
+    expect(sales).not.toMatch(/issue_invoice|issue_credit_note|record_payment|record_refund|validate_sale|cancel_sale|delete_sale/);
+    expect(sales.match(/kind: "write"/g)).toHaveLength(1);
+  });
+
+  it("ne transmet pas les coordonnées des acheteurs", () => {
+    const sales = read("src/lib/mcp/sales-tools.ts");
+    for (const field of ["buyerEmail", "buyerAddress", "buyerBillingAddress", "buyerDeliveryAddress", "buyerSiren", "buyerVatNumber"]) expect(sales).not.toContain(field);
   });
 
   it("publie des métadonnées qui désignent Supabase Auth", () => {

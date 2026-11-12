@@ -3,7 +3,7 @@ import { z } from "zod";
 /** Versions du protocole MCP acceptées ; la plus récente est proposée par défaut. */
 export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
 export const SERVER_INFO = { name: "yrelcompta", title: "YrelCompta", version: "1.0.0" };
-export const SERVER_INSTRUCTIONS = "YrelCompta est l’outil de gestion d’une micro-entreprise française de bijoux. Les montants sont en euros TTC. Les estimations de coût, de marge et de rentabilité sont internes : ce ne sont ni des résultats comptables ni des montants fiscaux dus. Avant toute création ou modification, récapitulez ce qui va être enregistré et attendez l’accord de l’utilisatrice. Les dépenses sont créées en brouillon : l’utilisatrice les vérifie et les valide elle-même dans YrelCompta. Consultez d’abord les données existantes (matières, fournisseurs, catégories) pour éviter les doublons.";
+export const SERVER_INSTRUCTIONS = "YrelCompta est l’outil de gestion d’une micro-entreprise française de bijoux. Les montants sont en euros TTC. Les estimations de coût, de marge et de rentabilité sont internes : ce ne sont ni des résultats comptables ni des montants fiscaux dus. Avant toute création ou modification, récapitulez ce qui va être enregistré et attendez l’accord de l’utilisatrice. Les ventes et les dépenses sont créées en brouillon : l’utilisatrice les vérifie et les valide elle-même dans YrelCompta. Les encaissements, factures et avoirs se gèrent uniquement dans l’application. Consultez d’abord les données existantes (matières, fournisseurs, catégories) pour éviter les doublons.";
 
 /** Erreur destinée à l'utilisatrice : son message est renvoyé tel quel à Claude. */
 export class McpToolError extends Error {}
