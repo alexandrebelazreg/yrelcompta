@@ -1,3 +1,4 @@
+import { FlashToast } from "@/components/ui/flash-toast";
 import Link from "next/link";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { getAuthenticatedContext } from "@/lib/auth/context";
@@ -16,7 +17,7 @@ export default async function InvoiceSettingsPage({ searchParams }: { searchPara
   return <>
     <Link className="back-link" href="/parametres">← Paramètres</Link>
     <header className="page-header"><div><p className="eyebrow">Identité snapshotée</p><h1>Paramètres de facturation</h1><p>Ces valeurs s’appliqueront uniquement aux futures factures. Les documents déjà émis ne changeront jamais.</p></div></header>
-    {message && <p className="form-message success" role="status">{message}</p>}{error && <p className="form-message" role="alert">{error}</p>}
+    {message && <FlashToast message={message}/>}{error && <p className="form-message" role="alert">{error}</p>}
     <p className="dashboard-note">Pour une entreprise individuelle, utilisez votre identité légale avec la mention EI / Entrepreneur individuel.</p>
     {!settings && <p className="dashboard-note">Les valeurs issues de l’entreprise ci-dessous sont de simples aides de préremplissage : vérifiez-les avant enregistrement.</p>}
     <form action={saveInvoiceSettingsAction} className="card form-stack invoice-settings-form">

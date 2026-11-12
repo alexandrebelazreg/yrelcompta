@@ -1,3 +1,4 @@
+import { FlashToast } from "@/components/ui/flash-toast";
 import Link from "next/link";
 import { EditDialog } from "@/components/ui/edit-dialog";
 import { SupplierForm } from "@/components/expenses/supplier-form";
@@ -21,7 +22,7 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
   return <>
     <Link className="back-link" href="/depenses">← Dépenses</Link>
     <header className="page-header"><div className="info-line"><h1>Fournisseurs</h1><InfoTip label="À propos de l’archivage des fournisseurs">Archivez un fournisseur au lieu de supprimer son historique.</InfoTip></div></header>
-    {message && <p className="form-message success">{message}</p>}
+    {message && <FlashToast message={message}/>}
     {error && <p className="form-message">{error}</p>}
     <form className="sales-filters"><div className="field filter-search"><label htmlFor="recherche">Nom, ville, e-mail ou immatriculation</label><input className="input" id="recherche" name="recherche" defaultValue={search}/></div><button className="secondary-link">Rechercher</button></form>
     <details className="action-panel"><summary className="button">Nouveau fournisseur</summary><SupplierForm/></details>

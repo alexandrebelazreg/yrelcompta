@@ -6,6 +6,7 @@ const root = process.cwd();
 const styles = readFileSync(join(root, "src/app/globals.css"), "utf8");
 const shell = readFileSync(join(root, "src/components/layout/app-shell.tsx"), "utf8");
 const navigation = readFileSync(join(root, "src/components/layout/navigation.tsx"), "utf8");
+const mobileTabBar = readFileSync(join(root, "src/components/layout/mobile-tab-bar.tsx"), "utf8");
 const dashboard = readFileSync(join(root, "src/app/(app)/tableau-de-bord/page.tsx"), "utf8");
 const sales = readFileSync(join(root, "src/app/(app)/ventes/page.tsx"), "utf8");
 const expenses = readFileSync(join(root, "src/app/(app)/depenses/page.tsx"), "utf8");
@@ -59,8 +60,13 @@ describe("identité visuelle Poudré chic", () => {
     }
     expect(shell).toContain('className="sidebar"');
     expect(shell).toContain('className="mobile-header"');
-    expect(shell).toContain('className="mobile-nav"');
+    expect(shell).toContain("<MobileTabBar");
     expect(shell).toContain("<Navigation />");
+    for (const label of ["Synthèse", "Ventes", "Dépenses", "Produits", "Factures", "Documents", "Registres", "Paramètres"]) {
+      expect(mobileTabBar).toContain(`"${label}"`);
+    }
+    expect(mobileTabBar).toContain(">Plus<");
+    expect(mobileTabBar).toContain("signOutAction");
   });
 
   it("compacte le tableau de bord et la liste des ventes", () => {

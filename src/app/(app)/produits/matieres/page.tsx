@@ -1,3 +1,4 @@
+import { FlashToast } from "@/components/ui/flash-toast";
 import Link from "next/link";
 import { EditDialog } from "@/components/ui/edit-dialog";
 import { MaterialCategoryForm } from "@/components/products/material-category-form";
@@ -38,7 +39,7 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
   return <>
     <Link className="back-link" href="/produits">← Produits</Link>
     <header className="page-header"><div className="info-line"><h1>Matières et composants</h1><InfoTip label="À propos des quantités de matières">Les quantités sont enregistrées en millièmes de l’unité choisie.</InfoTip></div></header>
-    {message && <p className="form-message success">{message}</p>}
+    {message && <FlashToast message={message}/>}
     {q.erreur && <p className="form-message">{String(q.erreur)}</p>}
     <div className="material-panels">
       <details className="action-panel"><summary className="button">Nouvelle matière</summary><MaterialForm suppliers={suppliers} colors={colors} categories={categories} references={references}/></details>

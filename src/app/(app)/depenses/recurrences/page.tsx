@@ -1,3 +1,4 @@
+import { FlashToast } from "@/components/ui/flash-toast";
 import Link from "next/link";
 import { EditDialog } from "@/components/ui/edit-dialog";
 import { RecurringForm } from "@/components/expenses/recurring-form";
@@ -28,7 +29,7 @@ export default async function RecurrencesPage({ searchParams }: { searchParams: 
   return <>
     <Link className="back-link" href="/depenses">← Dépenses</Link>
     <header className="page-header"><div className="info-line"><h1>Charges récurrentes</h1><InfoTip label="À propos des charges récurrentes automatiques">Les modèles automatiques créent un brouillon à leur échéance. Vérifiez-le puis validez-le lorsque la dépense est confirmée.</InfoTip></div></header>
-    {message && <p className="form-message success">{message}</p>}
+    {message && <FlashToast message={message}/>}
     {error && <p className="form-message">{error}</p>}
     <details className="action-panel"><summary className="button">Nouveau modèle</summary><RecurringForm suppliers={suppliers}/></details>
     <div className="register-table-wrap compact-table-wrap recurring-table-wrap">

@@ -1,3 +1,4 @@
+import { FlashToast } from "@/components/ui/flash-toast";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { ConfirmSubmitButton } from "@/components/sales/confirm-submit-button";
@@ -31,7 +32,7 @@ export default async function ClaudeSettingsPage({ searchParams }: { searchParam
   return <>
     <Link className="back-link" href="/parametres">← Paramètres</Link>
     <header className="page-header"><div className="info-line"><h1>Connecter Claude</h1><InfoTip label="À propos du connecteur Claude">Claude agit avec votre compte et voit uniquement les données de votre entreprise. Les règles d’accès de YrelCompta s’appliquent comme dans l’application.</InfoTip></div></header>
-    {message && <p className="form-message success">{message}</p>}
+    {message && <FlashToast message={message}/>}
     {error && <p className="form-message">{error}</p>}
     <section className="settings-grid">
       <Card>

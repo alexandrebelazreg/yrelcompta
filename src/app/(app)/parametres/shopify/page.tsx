@@ -1,3 +1,4 @@
+import { FlashToast } from "@/components/ui/flash-toast";
 import Link from "next/link";
 import { ConnectedShopify, ShopifyCredentialsForm } from "@/components/shopify/shopify-settings";
 import { getAuthenticatedContext } from "@/lib/auth/context";
@@ -24,7 +25,7 @@ export default async function ShopifySettingsPage({
   return <>
     <Link className="back-link" href="/parametres">← Paramètres</Link>
     <header className="page-header"><div><p className="eyebrow">Intégration</p><h1>Shopify</h1><p>Connectez votre boutique sans exposer ses identifiants.</p></div></header>
-    {message && <p className="form-message success" role="status">{message}</p>}
+    {message && <FlashToast message={message}/>}
     {error && <p className="form-message" role="alert">{error}</p>}
     {status ? <ConnectedShopify status={status}/> : <ShopifyCredentialsForm/>}
   </>;
