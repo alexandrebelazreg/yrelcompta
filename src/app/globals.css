@@ -678,6 +678,25 @@ button.table-action-link { background: none; border: 0; cursor: pointer; font: i
 .supplier-table .supplier-address { max-width: 220px; }
 .profitability-table { min-width: 560px; }
 .recurring-options { align-items: center; display: flex; flex-wrap: wrap; gap: .55rem .8rem; }
+/* Connecteur Claude : consentement OAuth et paramètres */
+.consent-section { background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-card); margin: 1rem 0; padding: .85rem 1rem; }
+.consent-section h2 { font-size: .95rem; margin: .2rem 0 .35rem; }
+.consent-section ul, .connector-list { display: grid; gap: .25rem; margin: 0 0 .6rem; padding-left: 1.1rem; }
+.consent-section ul { list-style: disc; }
+.consent-note { color: var(--color-text-secondary); font-size: 13px; margin: .4rem 0 0; }
+.consent-actions { align-items: center; display: flex; flex-wrap: wrap; gap: .6rem; }
+.consent-actions form { margin: 0; }
+.connector-steps { display: grid; gap: .45rem; list-style: decimal; margin: .5rem 0 0; padding-left: 1.2rem; }
+.connector-list { list-style: disc; }
+.connector-url { background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: 6px; display: inline-block; font-size: 12.5px; overflow-wrap: anywhere; padding: .1rem .35rem; user-select: all; }
+.connected-apps-table { min-width: 520px; }
+@media (max-width: 768px) {
+  .connected-apps-table .connected-app-main,
+  .connected-apps-table .connected-app-actions { display: block; }
+  .connected-apps-table .connected-app-main { grid-column: 1; grid-row: 1; }
+  .connected-apps-table .connected-app-actions { grid-column: 1 / -1; grid-row: 3; }
+  .connected-apps-table .compact-mobile-context { grid-column: 1 / -1; grid-row: 2; }
+}
 .creatable-select-new { display: flex; gap: .45rem; }
 .creatable-select-new .input { flex: 1; min-width: 0; }
 .creatable-select-new .secondary-link { min-height: 0; padding-block: .4rem; }

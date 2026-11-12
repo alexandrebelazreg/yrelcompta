@@ -4,7 +4,7 @@ import { getSupabaseConfig } from "./config";
 
 const privatePrefixes = [
   "/tableau-de-bord", "/ventes", "/depenses", "/produits", "/rentabilite",
-  "/documents", "/registres", "/parametres", "/demarrage",
+  "/documents", "/registres", "/parametres", "/demarrage", "/oauth",
 ];
 const authPaths = ["/connexion", "/inscription"];
 
@@ -40,7 +40,8 @@ export async function updateSession(request: NextRequest) {
   if (!authenticated && privatePrefixes.some((prefix) => path.startsWith(prefix))) {
     const url = request.nextUrl.clone();
     url.pathname = "/connexion";
-    url.searchParams.set("retour", path);
+    url.search = "";
+    url.searchParams.set("retour", `${path}${request.nextUrl.search}`);
     return NextResponse.redirect(url);
   }
 

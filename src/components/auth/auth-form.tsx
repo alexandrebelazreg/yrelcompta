@@ -9,7 +9,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 
 type AuthAction = (state: ActionState, formData: FormData) => Promise<ActionState>;
 
-export function AuthForm({ mode, action }: { mode: "signin" | "signup"; action: AuthAction }) {
+export function AuthForm({ mode, action, returnTo }: { mode: "signin" | "signup"; action: AuthAction; returnTo?: string }) {
   const [state, formAction] = useActionState(action, {});
   const [clientErrors, setClientErrors] = useState<Record<string, string[]>>({});
   const signup = mode === "signup";
@@ -26,6 +26,7 @@ export function AuthForm({ mode, action }: { mode: "signin" | "signup"; action: 
   const errors = Object.keys(clientErrors).length ? clientErrors : state.fieldErrors ?? {};
   return (
     <form action={formAction} onSubmit={validate} className="form-stack" noValidate>
+      {returnTo && <input type="hidden" name="retour" value={returnTo} />}
       <Field name="email" type="email" label="Adresse e-mail" autoComplete="email" required error={errors.email?.[0]} />
       <Field name="password" type="password" label="Mot de passe" autoComplete={signup ? "new-password" : "current-password"} minLength={8} required error={errors.password?.[0]} />
       <FormMessage message={state.error} />

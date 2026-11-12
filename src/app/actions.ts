@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { missingSupabaseMessage } from "@/lib/supabase/config";
+import { safeReturnPath } from "@/lib/auth/return-path";
 import { credentialsSchema, onboardingSchema, type ActionState } from "@/lib/auth/validation";
 
 function authError(message: string): string {
@@ -31,7 +32,8 @@ export async function signInAction(_: ActionState, formData: FormData): Promise<
   if (error) return { error: authError(error.message) };
 
   const { data: membership } = await supabase.from("business_members").select("business_id").limit(1).maybeSingle();
-  redirect(membership ? "/tableau-de-bord" : "/demarrage");
+  const returnTo = safeReturnPath(formData.get("retour"));
+  redirect(membership ? returnTo ?? "/tableau-de-bord" : "/demarrage");
 }
 
 export async function signUpAction(_: ActionState, formData: FormData): Promise<ActionState> {
