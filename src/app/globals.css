@@ -21,10 +21,10 @@
   --color-peach-strong: #87533e;
   --color-blue-soft: #e3edf4;
   --color-blue-strong: #486677;
-  --color-danger-soft: #f8e2e2;
-  --color-danger: #99434c;
-  --color-danger-border: #ecc9cd;
-  --color-danger-hover: #843740;
+  --color-danger-soft: #fbe9e7;
+  --color-danger: #b42318;
+  --color-danger-border: #f2c7c1;
+  --color-danger-hover: #912018;
   --color-warning-soft: #fff1dc;
   --color-warning: #765020;
   --color-warning-border: #ead4b4;
@@ -853,3 +853,63 @@ button.table-action-link { background: none; border: 0; cursor: pointer; font: i
   .sales-table .sale-refunded,
   .sales-table .sale-remaining { display: none; }
 }
+
+/* Actions destructives : rouge franc, distinct du rose de la marque. */
+.danger-button { color: #fff; }
+.danger-button:hover { box-shadow: 0 5px 16px rgb(180 35 24 / 18%); }
+
+/* Fenêtre de confirmation des actions irréversibles (remplace window.confirm). */
+.confirm-dialog { background: transparent; border: 0; margin: auto; max-width: min(420px, calc(100vw - 2rem)); padding: 0; width: 100%; }
+.confirm-dialog::backdrop { background: rgb(30 20 25 / 45%); }
+.confirm-dialog-panel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-panel); box-shadow: 0 18px 50px rgb(0 0 0 / 18%); color: var(--color-text); font-size: 15px; font-weight: 400; line-height: 1.5; padding: 1.25rem; text-align: left; white-space: normal; }
+.confirm-dialog-panel > p { font-weight: 600; margin: 0 0 1.1rem; }
+.confirm-dialog-actions { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: flex-end; }
+.confirm-dialog .confirm-dialog-actions > .button, .confirm-dialog .confirm-dialog-actions > .secondary-link { font-size: .875rem; min-height: 44px; padding: .55rem 1rem; }
+@media (max-width: 420px) { .confirm-dialog-actions { flex-direction: column-reverse; } .confirm-dialog-actions > * { width: 100%; } }
+
+/* Saisie en cours dans la fenêtre de modification : on demande avant d’abandonner. */
+.discard-banner { align-items: center; background: var(--color-warning-soft); border: 1px solid var(--color-warning-border); border-radius: 10px; color: var(--color-warning); display: flex; flex-wrap: wrap; gap: .6rem 1rem; justify-content: space-between; margin-bottom: .8rem; padding: .65rem .8rem; }
+.discard-banner p { font-size: 13.5px; font-weight: 650; margin: 0; }
+.discard-banner > div { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+/* Apparition des fenêtres : légère montée, sans rebond (aucun élan de geste à prolonger). */
+.edit-dialog[open], .confirm-dialog[open] { animation: dialog-in .2s cubic-bezier(.2, .8, .2, 1); }
+.edit-dialog[open]::backdrop, .confirm-dialog[open]::backdrop { animation: backdrop-in .2s ease-out; }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+@keyframes backdrop-in { from { opacity: 0; } }
+
+/* Squelette de chargement : affiché instantanément, la navigation reste visible. */
+.page-skeleton { display: grid; gap: .7rem; }
+.skeleton { background: linear-gradient(90deg, var(--color-surface-muted) 0%, var(--color-border) 50%, var(--color-surface-muted) 100%); background-size: 200% 100%; border-radius: 10px; animation: skeleton-shimmer 1.4s ease-in-out infinite; }
+.skeleton-title { height: 1.9rem; width: min(280px, 60%); }
+.skeleton-subtitle { height: .9rem; margin-bottom: .8rem; width: min(420px, 85%); }
+.skeleton-grid { display: grid; gap: .65rem; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: .8rem; }
+.skeleton-card { border-radius: var(--radius-card); height: 5.2rem; }
+.skeleton-row { height: 2.6rem; }
+@keyframes skeleton-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (max-width: 700px) { .skeleton-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Navigation : retour immédiat à l’appui, puis indicateur tant que la page charge. */
+.app-nav a:active { background: var(--color-brand-soft); transition: none; }
+.app-nav a span.is-pending { animation: nav-pending .9s ease-in-out infinite alternate; background: var(--color-brand-soft); color: var(--color-brand); }
+@keyframes nav-pending { from { opacity: 1; } to { opacity: .45; } }
+
+/* Cibles tactiles : zone cliquable agrandie sans changer l’apparence (24 px min., 44 px au doigt). */
+.info-tip > summary { position: relative; }
+.info-tip > summary::before { content: ""; inset: -7px; position: absolute; }
+.table-action-link { position: relative; }
+.table-action-link::after { content: ""; inset: -.45rem -.3rem; position: absolute; }
+.edit-dialog-close { align-items: center; display: inline-flex; justify-content: center; min-height: 44px; min-width: 44px; }
+.user-menu button, .mobile-header form button { min-height: 32px; }
+@media (pointer: coarse) {
+  .info-tip > summary::before { inset: -13px; }
+  .table-action-link::after { inset: -.75rem -.35rem; }
+  .user-menu button, .mobile-header form button { min-height: 44px; padding-inline: .5rem; }
+  .button, .button-link, .secondary-link, .input { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edit-dialog[open], .confirm-dialog[open], .edit-dialog[open]::backdrop, .confirm-dialog[open]::backdrop { animation: backdrop-in .15s ease-out; }
+  .skeleton, .app-nav a span.is-pending { animation: none; }
+}
+.edit-dialog .discard-banner .button, .edit-dialog .discard-banner .secondary-link { font-size: .84rem; min-height: 2.25rem; padding: .4rem .8rem; }
