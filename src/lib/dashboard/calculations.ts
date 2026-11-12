@@ -230,3 +230,29 @@ export function calculateDashboardMetrics(source: DashboardSourceData): Dashboar
     fiscalReserve,
   };
 }
+
+/** Encaissements bruts jour par jour du mois (centimes), pour le mini-graphe de l’écran Aujourd’hui. */
+export function dailyCollectedCents(payments: DashboardSourceData["payments"], month: DashboardMonth): number[] {
+  const start = Date.parse(`${month.start}T00:00:00Z`);
+  const end = Date.parse(`${month.end}T00:00:00Z`);
+  const days = Math.round((end - start) / 86_400_000);
+  const totals = Array.from({ length: days }, () => BigInt(0));
+  for (const payment of payments) {
+    if (!payment.receivedOn) continue;
+    const index = Math.round((Date.parse(`${payment.receivedOn}T00:00:00Z`) - start) / 86_400_000);
+    if (index >= 0 && index < days) totals[index] += exactInteger(payment.grossAmountCents);
+  }
+  return totals.map(safeNumber);
+}
+
+/**
+ * Part des charges fixes estimées du mois couverte par la marge de fabrication, en pourcentage entier.
+ * Indisponible (null) dans les mêmes cas que l’écart de couverture : pas de charges fixes, pas de vente
+ * validée, ou coût de fabrication incomplet.
+ */
+export function fixedCostCoveragePercent(metrics: DashboardMetrics): number | null {
+  const monthly = metrics.fixedCosts.monthlyCents;
+  if (metrics.fixedCostCoverage.unavailableReason !== null || monthly === null || monthly <= 0) return null;
+  const margin = Math.max(0, metrics.profitability.manufacturingMarginCents);
+  return Math.round((margin / monthly) * 100);
+}

@@ -24,7 +24,7 @@ const shopifyUi = readFileSync(join(root, "src/components/shopify/shopify-settin
 
 describe("identité visuelle Poudré chic", () => {
   it("déclare la palette sémantique et les dimensions communes", () => {
-    expect(styles).toContain("--color-bg: #fcfaf8");
+    expect(styles).toContain("--color-bg: #f5f2f3");
     expect(styles).toContain("--color-brand: #a65f78");
     expect(styles).toContain("--color-lavender: #e9e3f4");
     expect(styles).toContain("--color-sage: #dceadd");
@@ -55,14 +55,14 @@ describe("identité visuelle Poudré chic", () => {
   });
 
   it("maintient la navigation complète sur desktop et mobile", () => {
-    for (const label of ["Tableau de bord", "Ventes", "Factures", "Dépenses", "Produits", "Documents", "Registres", "Paramètres"]) {
+    for (const label of ["Aujourd’hui", "Ventes", "Factures", "Dépenses", "Produits", "Documents", "Registres", "Paramètres"]) {
       expect(navigation).toContain(`"${label}"`);
     }
     expect(shell).toContain('className="sidebar"');
     expect(shell).toContain('className="mobile-header"');
     expect(shell).toContain("<MobileTabBar");
     expect(shell).toContain("<Navigation />");
-    for (const label of ["Synthèse", "Ventes", "Dépenses", "Produits", "Factures", "Documents", "Registres", "Paramètres"]) {
+    for (const label of ["Aujourd’hui", "Ventes", "Dépenses", "Produits", "Factures", "Documents", "Registres", "Paramètres"]) {
       expect(mobileTabBar).toContain(`"${label}"`);
     }
     expect(mobileTabBar).toContain(">Plus<");
@@ -155,8 +155,8 @@ describe("identité visuelle Poudré chic", () => {
   it("signale les brouillons récurrents dans les dépenses et le tableau de bord", () => {
     expect(expenses).toContain("expense.recurring_template_id");
     expect(expenses).toContain("Récurrente");
-    expect(dashboard).toContain("Charges récurrentes à vérifier");
-    expect(dashboard).toContain("recurringDraftCount > 0");
+    expect(dashboard).toContain("getRecurringDraftReviewCount");
+    expect(dashboard).toContain("recurringDraftCount: tasks.recurringDraftCount");
     expect(dashboardQueries).toContain('.eq("status", "draft")');
     expect(dashboardQueries).toContain('.not("recurring_template_id", "is", null)');
   });

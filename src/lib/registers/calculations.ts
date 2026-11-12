@@ -199,3 +199,33 @@ export function turnoverDifference(suggestedCents: number | null, declaredCents:
   if (suggestedCents === null) return null;
   return safeNumber(exactInteger(declaredCents) - exactInteger(suggestedCents));
 }
+
+export interface PendingDeclarationPeriod extends GeneratedDeclarationPeriod {
+  status: "to-declare" | "overdue";
+}
+
+/**
+ * Périodes de déclaration de l’année en cours et de la précédente qui attendent encore une déclaration
+ * (à faire ou en retard), triées par échéance. Sert la liste « À faire » de l’écran Aujourd’hui.
+ */
+export function pendingDeclarationPeriods(
+  activityStartedOn: string | null,
+  declarationPeriod: DeclarationPeriod,
+  declaredPeriods: Array<{ periodStart: string; periodEnd: string }>,
+  today = getTodayInParis(),
+): PendingDeclarationPeriod[] {
+  const year = Number(today.slice(0, 4));
+  const declared = new Set(declaredPeriods.map((period) => `${period.periodStart}|${period.periodEnd}`));
+  const seen = new Set<string>();
+  const pending: PendingDeclarationPeriod[] = [];
+  for (const displayedYear of [year - 1, year]) {
+    for (const period of generateDeclarationPeriods(activityStartedOn, declarationPeriod, displayedYear)) {
+      const key = `${period.periodStart}|${period.periodEnd}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const status = declarationUiStatus(period.periodEnd, period.dueOn, declared.has(key), today);
+      if (status === "to-declare" || status === "overdue") pending.push({ ...period, status });
+    }
+  }
+  return pending.sort((a, b) => a.dueOn.localeCompare(b.dueOn));
+}

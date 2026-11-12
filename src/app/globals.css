@@ -2,9 +2,9 @@
 
 :root {
   /* Design tokens — Poudré chic */
-  --color-bg: #fcfaf8;
-  --color-surface: #fffdfc;
-  --color-surface-muted: #f8f3f5;
+  --color-bg: #f5f2f3;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f8f4f6;
   --color-text: #312b2f;
   --color-text-secondary: #716870;
   --color-text-muted: #7b7178;
@@ -33,8 +33,9 @@
   --color-surface-success: #f0f6f1;
   --color-surface-hover: #fdf8fa;
   --color-surface-cash: #fff9f1;
-  --color-sidebar: #fffaf9;
+  --color-sidebar: #ebe5e8;
   --color-sage-border: #c6ddc8;
+  --color-attention: #c47a3d;
   --color-chrome: rgb(255 253 252 / 78%);
   --color-toast: rgb(240 246 241 / 92%);
   --color-button: var(--color-brand);
@@ -88,6 +89,7 @@
     --color-sage: #22322a;
     --color-sage-strong: #a9d1b3;
     --color-sage-border: #35503f;
+    --color-attention: #e0a06a;
     --color-peach: #3b2a22;
     --color-peach-strong: #ebbba3;
     --color-blue-soft: #1f2b33;
@@ -1164,3 +1166,91 @@ button.table-action-link { background: none; border: 0; cursor: pointer; font: i
 .empty-state-icon .icon, .register-home-card > span .icon { height: 1.2rem; width: 1.2rem; }
 .flash-toast > .icon { height: 1.1rem; width: 1.1rem; }
 .flash-toast button .icon, .edit-dialog-close .icon { height: 1.1rem; margin: auto; width: 1.1rem; }
+
+/* Palette Atelier : fond rosé neutre, cartes blanches sans bordure, barre latérale plus dense. */
+.sidebar { border-right-color: var(--color-border-strong); }
+.app-nav a[aria-current="page"] { background: rgb(255 255 255 / 75%); color: var(--color-brand-hover); }
+.app-nav a[aria-current="page"] span { background: transparent; }
+.card { border-color: transparent; box-shadow: 0 1px 2px rgb(40 20 30 / 5%); }
+@media (prefers-color-scheme: dark) {
+  .app-nav a[aria-current="page"] { background: rgb(255 255 255 / 8%); }
+  .card { border-color: var(--color-border); box-shadow: none; }
+}
+
+/* Écran « Aujourd’hui » (Atelier-Carnet) : l’action d’abord, le chiffre du mois en tête. */
+.today-header { align-items: flex-end; display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; justify-content: space-between; margin-bottom: 1.5rem; }
+.today-date { color: var(--color-brand-hover); font-size: .8125rem; font-weight: 650; margin: 0 0 .2rem; }
+.today-header h1 { font-size: clamp(2rem, 4vw, 2.5rem); font-weight: 750; letter-spacing: -.025em; line-height: 1.05; margin: 0; }
+.today-quick { display: flex; flex-wrap: wrap; gap: .5rem; }
+.today-quick a { gap: .45rem; }
+.today-quick .secondary-link { color: var(--color-text); }
+
+.today-hero { align-items: flex-end; background: var(--color-surface); border-radius: 20px; box-shadow: 0 1px 2px rgb(40 20 30 / 5%), 0 10px 30px rgb(40 20 30 / 5%); display: flex; flex-wrap: wrap; gap: 1.5rem 2rem; justify-content: space-between; margin-bottom: 1.75rem; padding: clamp(1.25rem, 3vw, 2rem); }
+.today-hero-main { display: flex; flex-direction: column; gap: .25rem; min-width: 0; }
+.today-hero-label { color: var(--color-text-secondary); font-size: .875rem; }
+.today-hero-value { font-size: clamp(2.4rem, 6vw, 3.5rem); font-variant-numeric: tabular-nums; font-weight: 750; letter-spacing: -.03em; line-height: 1; }
+.today-hero-sub { color: var(--color-text-secondary); font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.today-hero-side { display: flex; flex: 1 1 18rem; flex-direction: column; gap: .75rem; max-width: 28rem; }
+.today-bars { align-items: flex-end; display: flex; gap: 3px; height: 4rem; }
+.today-bars span { background: var(--color-brand-soft); border-radius: 3px; flex: 1 1 0; min-width: 0; }
+.today-bars span.has-value { background: var(--color-brand-soft-border); }
+.today-bars span.is-today { background: var(--color-button); }
+.today-coverage > div:first-child { color: var(--color-text-secondary); display: flex; font-size: .8125rem; gap: .75rem; justify-content: space-between; margin-bottom: .4rem; }
+.today-coverage strong { color: var(--color-text); font-variant-numeric: tabular-nums; }
+.today-progress { background: var(--color-surface-muted); border-radius: 99px; height: 8px; overflow: hidden; }
+.today-progress span { background: var(--color-button); border-radius: 99px; display: block; height: 100%; }
+.today-coverage-empty { color: var(--color-text-secondary); font-size: .8125rem; margin: 0; }
+.today-coverage-empty a { color: var(--color-brand-hover); font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
+
+.today-columns { align-items: flex-start; display: flex; flex-wrap: wrap; gap: 1.5rem; }
+.today-tasks { flex: 3 1 26rem; min-width: 0; }
+.today-summary { display: flex; flex: 2 1 18rem; flex-direction: column; gap: .6rem; min-width: 0; }
+.today-section-title { align-items: baseline; display: flex; gap: .6rem; justify-content: space-between; margin: 0 .25rem .6rem; }
+.today-summary .today-section-title { margin-bottom: 0; }
+.today-summary .today-section-title + .today-panel { margin-bottom: .9rem; }
+.today-section-title h2 { font-size: 1.25rem; font-weight: 750; letter-spacing: -.015em; margin: 0; }
+.today-section-title a { color: var(--color-brand-hover); font-size: .875rem; font-weight: 650; }
+.today-count { background: var(--color-button); border-radius: 99px; color: #fff; font-size: .8125rem; font-variant-numeric: tabular-nums; font-weight: 700; margin-right: auto; padding: .05rem .5rem; }
+.today-panel { background: var(--color-surface); border-radius: 16px; list-style: none; margin: 0; overflow: hidden; padding: 0; }
+.today-empty { align-items: center; color: var(--color-text-secondary); display: flex; gap: .75rem; padding: 1rem 1.15rem; }
+.today-empty p { margin: 0; }
+.today-empty strong { color: var(--color-text); }
+.today-empty .icon { color: var(--color-sage-strong); height: 1.4rem; width: 1.4rem; }
+.today-task { align-items: center; display: flex; flex-wrap: wrap; gap: .6rem .9rem; padding: .9rem 1.15rem; }
+.today-task + .today-task, .today-summary-list > div + div, .today-sales li + li { border-top: 1px solid var(--color-border); }
+.today-task > div { display: flex; flex: 1 1 14rem; flex-direction: column; min-width: 0; }
+.today-task strong { font-weight: 650; }
+.today-task > div span { color: var(--color-text-secondary); font-size: .8125rem; }
+.today-task-action.button-link { border-radius: 99px; font-size: .8125rem; min-height: 2.25rem; padding: .35rem .95rem; }
+.today-dot { border-radius: 50%; flex: 0 0 auto; height: 10px; width: 10px; }
+.today-dot-danger { background: var(--color-danger-solid); }
+.today-dot-brand { background: var(--color-button); }
+.today-dot-warning { background: var(--color-attention); }
+.today-dot-info { background: var(--color-lavender-strong); }
+.today-summary-list > div { align-items: baseline; display: flex; gap: .75rem; justify-content: space-between; padding: .8rem 1.15rem; }
+.today-summary-list dt { display: flex; flex-direction: column; }
+.today-summary-list dt span { font-weight: 550; }
+.today-summary-list dt small { color: var(--color-text-secondary); font-size: .75rem; }
+.today-summary-list dd { font-size: 1.1rem; font-variant-numeric: tabular-nums; font-weight: 700; margin: 0; white-space: nowrap; }
+.today-sales a { align-items: center; display: flex; gap: .75rem; justify-content: space-between; min-height: 3.25rem; padding: .6rem 1.15rem; }
+.today-sales a:active { background: var(--color-surface-hover); }
+.today-sales a > span:first-child { display: flex; flex-direction: column; min-width: 0; }
+.today-sales small { color: var(--color-text-secondary); font-size: .8125rem; }
+.today-amount { font-variant-numeric: tabular-nums; font-weight: 650; white-space: nowrap; }
+
+.today-analysis { border-top: 1px solid var(--color-border-strong); margin-top: 2.5rem; padding-top: 1.75rem; }
+.today-analysis-header { align-items: flex-end; display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; margin-bottom: .5rem; }
+.today-analysis-header h2 { font-size: 1.35rem; font-weight: 750; letter-spacing: -.015em; margin: 0 0 .2rem; }
+.today-analysis-header p { color: var(--color-text-secondary); font-size: .875rem; margin: 0; }
+
+@media (max-width: 700px) {
+  .today-header { align-items: stretch; flex-direction: column; }
+  .today-quick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .today-quick a { flex-direction: column; font-size: .8125rem; gap: .3rem; min-height: 4.25rem; }
+  .today-quick a .icon { height: 1.35rem; width: 1.35rem; }
+  .today-hero { border-radius: 18px; }
+  .today-task-action.button-link { margin-left: calc(10px + .9rem); }
+}
+@media (prefers-color-scheme: dark) {
+  .today-hero { box-shadow: none; border: 1px solid var(--color-border); }
+}
