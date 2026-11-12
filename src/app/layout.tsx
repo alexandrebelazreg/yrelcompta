@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "La gestion simple de votre micro-entreprise de bijoux.",
 };
 
-export const viewport: Viewport = { viewportFit: "cover", themeColor: "#fcfaf8" };
+export const viewport: Viewport = { viewportFit: "cover", themeColor: [{ media: "(prefers-color-scheme: light)", color: "#fcfaf8" }, { media: "(prefers-color-scheme: dark)", color: "#191517" }] };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

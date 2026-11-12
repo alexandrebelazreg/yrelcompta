@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Icon } from "./icon";
 
 const VISIBLE_MS = 4500;
 
@@ -36,9 +37,9 @@ export function FlashToast({ message }: { message: string }) {
 
   return <div className="flash-toast-region" role="status" aria-live="polite">
     {visible && <div className="flash-toast">
-      <span aria-hidden="true">✓</span>
+      <Icon name="check" />
       <p>{message}</p>
-      <button type="button" aria-label="Masquer la notification" onClick={() => setVisible(false)}>×</button>
+      <button type="button" aria-label="Masquer la notification" onClick={() => setVisible(false)}><Icon name="close" /></button>
     </div>}
   </div>;
 }

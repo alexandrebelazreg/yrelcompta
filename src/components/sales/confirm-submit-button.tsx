@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef } from "react";
 import { useFormStatus } from "react-dom";
+import { PendingLabel } from "@/components/ui/pending-label";
 
 /**
  * Bouton d’envoi réservé aux actions irréversibles : ouvre une fenêtre de confirmation
@@ -37,7 +38,7 @@ export function ConfirmSubmitButton({ children, message, danger = false }: { chi
         <p id={messageId}>{message}</p>
         <div className="confirm-dialog-actions">
           <button className="secondary-link" type="button" autoFocus disabled={pending} onClick={() => dialogRef.current?.close()}>Annuler</button>
-          <button className={buttonClass} type="submit" disabled={pending} aria-busy={pending}>{pending ? "Veuillez patienter…" : children}</button>
+          <button className={buttonClass} type="submit" disabled={pending} aria-busy={pending}><PendingLabel pending={pending}>{children}</PendingLabel></button>
         </div>
       </div>
     </dialog>
