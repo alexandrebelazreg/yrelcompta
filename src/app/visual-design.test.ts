@@ -30,7 +30,7 @@ describe("identité visuelle Poudré chic", () => {
     expect(styles).toContain("--color-peach: #f8e3d7");
     expect(styles).toContain("--color-focus-ring: #914c66");
     expect(styles).toContain("--color-warning-border: #ead4b4");
-    expect(styles).toContain("--color-danger-hover: #843740");
+    expect(styles).toContain("--color-danger-hover: #912018");
     expect(styles).toContain("--radius-card: 14px");
     expect(styles).toContain("--radius-control: 10px");
   });
