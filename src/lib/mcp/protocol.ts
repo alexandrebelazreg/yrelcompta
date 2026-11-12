@@ -34,7 +34,8 @@ function failure(id: JsonRpcId | null, code: number, message: string): JsonRpcRe
 
 export function toolDefinitions<Context>(tools: McpTool<Context>[]) {
   return tools.map((tool) => {
-    const inputSchema = z.toJSONSchema(tool.input) as Record<string, unknown>;
+    // Schéma de ce que Claude envoie (avant les transformations Zod, qui ne sont pas représentables en JSON Schema).
+    const inputSchema = z.toJSONSchema(tool.input, { io: "input", unrepresentable: "any" }) as Record<string, unknown>;
     delete inputSchema.$schema;
     return { name: tool.name, title: tool.title, description: tool.description, inputSchema, annotations: { title: tool.title, readOnlyHint: tool.kind !== "write", destructiveHint: false, idempotentHint: tool.kind !== "write", openWorldHint: false } };
   });
@@ -85,7 +86,13 @@ export async function handleMcpMessage<Context>(body: unknown, tools: McpTool<Co
     }
     const { id, method, params } = parsed.data;
     if (id === undefined) continue; // notification (ex. notifications/initialized)
-    responses.push(await handleRequest(id, method, params ?? {}, tools, context));
+    try {
+      responses.push(await handleRequest(id, method, params ?? {}, tools, context));
+    } catch (error) {
+      // Aucune erreur inattendue ne doit produire une réponse HTTP 500 : Claude reçoit une erreur JSON-RPC.
+      console.error("Requête MCP en échec", { method, code: error instanceof Error ? error.message : "UNKNOWN" });
+      responses.push(failure(id, -32603, "Internal error"));
+    }
   }
   if (responses.length === 0) return null;
   return Array.isArray(body) ? responses : responses[0];
