@@ -1,3 +1,4 @@
+import { FlashToast } from "@/components/ui/flash-toast";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExpenseStatusBadge } from "@/components/expenses/status-badge";
@@ -72,7 +73,7 @@ export default async function ExpensePage({
         </div>
         <ExpenseStatusBadge status={e.status} />
       </header>
-      {message && <p className="form-message success">{message}</p>}
+      {message && <FlashToast message={message}/>}
       {error && <p className="form-message">{error}</p>}
       {e.status === "draft" && (
         <section className="sale-actions">

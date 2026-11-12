@@ -1,3 +1,4 @@
+import { FlashToast } from "@/components/ui/flash-toast";
 import Link from "next/link";
 import { InfoTip } from "@/components/ui/info-tip";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -33,7 +34,7 @@ export default async function FiscalSettingsPage({ searchParams }: { searchParam
   return <>
     <Link className="back-link" href="/parametres">← Paramètres</Link>
     <header className="page-header"><div className="info-line"><h1>Paramètres fiscaux et sociaux</h1><InfoTip label="À propos des paramètres fiscaux et sociaux">Configurez les choix de l’entreprise sans saisir ni dupliquer les taux légaux.</InfoTip></div></header>
-    {message && <p className="form-message success" role="status">{message}</p>}{error && <p className="form-message" role="alert">{error}</p>}
+    {message && <FlashToast message={message}/>}{error && <p className="form-message" role="alert">{error}</p>}
     <div className="fiscal-warnings">
       <strong>Estimation interne de trésorerie.</strong> YrelCompta ne transmet aucune déclaration.
       <span>Hors CFE · Hors impôt sur le revenu au barème progressif · TVA non calculée dans cette version.</span>
