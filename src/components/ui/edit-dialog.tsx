@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
+import { Icon } from "./icon";
 import { useSheetDrag } from "./use-sheet-drag";
 
 /**
@@ -59,7 +60,7 @@ export function EditDialog({ title, label = "Modifier", children }: { title: str
         <header className="edit-dialog-header" {...handleProps}>
           <span className="sheet-grabber" aria-hidden="true" />
           <h2>{title}</h2>
-          <button className="edit-dialog-close" type="button" aria-label="Fermer" onClick={requestClose}>×</button>
+          <button className="edit-dialog-close" type="button" aria-label="Fermer" onClick={requestClose}><Icon name="close" /></button>
         </header>
         {confirmingDiscard && <div className="discard-banner" role="alert">
           <p>Vos modifications ne sont pas enregistrées.</p>
