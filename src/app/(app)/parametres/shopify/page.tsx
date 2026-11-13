@@ -1,5 +1,6 @@
 import { FlashToast } from "@/components/ui/flash-toast";
 import Link from "next/link";
+import { ShopifyGuide } from "@/components/shopify/shopify-guide";
 import { ConnectedShopify, ShopifyCredentialsForm } from "@/components/shopify/shopify-settings";
 import { getAuthenticatedContext } from "@/lib/auth/context";
 import { getShopifyConnectionStatus } from "@/lib/shopify/queries";
@@ -24,9 +25,9 @@ export default async function ShopifySettingsPage({
 
   return <>
     <Link className="back-link" href="/parametres">← Paramètres</Link>
-    <header className="page-header"><div><p className="eyebrow">Intégration</p><h1>Shopify</h1><p>Connectez votre boutique sans exposer ses identifiants.</p></div></header>
+    <header className="page-header"><div><p className="eyebrow">Intégration</p><h1>Shopify</h1><p>Reliez votre boutique Shopify à YrelCompta pour recevoir vos commandes. Suivez le guide ci-dessous, étape par étape.</p></div></header>
     {message && <FlashToast message={message}/>}
     {error && <p className="form-message" role="alert">{error}</p>}
-    {status ? <ConnectedShopify status={status}/> : <ShopifyCredentialsForm/>}
+    {status ? <><ConnectedShopify status={status}/><ShopifyGuide open={false}/></> : <><ShopifyGuide open/><ShopifyCredentialsForm/></>}
   </>;
 }

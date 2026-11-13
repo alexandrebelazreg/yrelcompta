@@ -1254,3 +1254,31 @@ button.table-action-link { background: none; border: 0; cursor: pointer; font: i
 @media (prefers-color-scheme: dark) {
   .today-hero { box-shadow: none; border: 1px solid var(--color-border); }
 }
+
+/* Texte courant dans une carte : le gras reste en ligne (la règle .card strong vise les chiffres clés). */
+.shopify-guide strong,
+.connector-steps strong,
+.connector-list strong,
+.card .consent-note strong { display: inline; font-size: inherit; font-weight: 650; letter-spacing: normal; }
+
+/* Guide de connexion Shopify */
+.shopify-guide details > summary { align-items: baseline; cursor: pointer; display: flex; flex-wrap: wrap; gap: .4rem .8rem; justify-content: space-between; list-style: none; }
+.shopify-guide details > summary::-webkit-details-marker { display: none; }
+.shopify-guide details > summary h2 { margin: 0; }
+.shopify-guide details > summary::after { color: var(--color-text-secondary); content: "Afficher"; font-size: 12.5px; }
+.shopify-guide details[open] > summary::after { content: "Masquer"; }
+.shopify-guide-duration { color: var(--color-text-secondary); font-size: 12.5px; }
+.shopify-guide-body { display: grid; gap: 1.1rem; margin-top: .9rem; }
+.shopify-guide-body h3 { font-size: .98rem; margin: 0 0 .35rem; }
+.shopify-guide-block ul { display: grid; gap: .3rem; list-style: disc; margin: 0; padding-left: 1.15rem; }
+.shopify-guide-steps { counter-reset: shopify-step; display: grid; gap: .9rem; list-style: none; margin: 0; padding: 0; }
+.shopify-guide-steps > li { background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-control); counter-increment: shopify-step; padding: .75rem .9rem; }
+.shopify-guide-steps > li > h3::before { content: "Étape " counter(shopify-step) " · "; color: var(--color-text-secondary); font-weight: 600; }
+.shopify-guide-steps > li > ol { display: grid; gap: .3rem; list-style: decimal; margin: 0; padding-left: 1.2rem; }
+.shopify-guide-steps code, .shopify-guide-block code { overflow-wrap: anywhere; }
+.shopify-guide-translation { color: var(--color-text-secondary); }
+.shopify-guide-note { color: var(--color-text-secondary); font-size: 13px; margin: .45rem 0 0; }
+.shopify-guide-troubleshooting { display: grid; gap: .6rem; margin: 0; }
+.shopify-guide-troubleshooting dt { font-weight: 650; }
+.shopify-guide-troubleshooting dd { color: var(--color-text-secondary); margin: .1rem 0 0; }
+.field-hint { color: var(--color-text-secondary); font-size: 12.5px; margin: .2rem 0 0; }

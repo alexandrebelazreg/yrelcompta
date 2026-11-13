@@ -12,11 +12,11 @@ import type { ShopifyConnectionStatus } from "@/lib/shopify/types";
 
 export function ShopifyCredentialsForm({ shopDomain = "", replacement = false }: { shopDomain?: string; replacement?: boolean }) {
   return <form action={connectShopifyAction} className="card form-stack shopify-credentials-form">
-    <div className="info-line"><h2>{replacement ? "Remplacer les identifiants" : "Non connecté"}</h2><InfoTip label="Confidentialité des identifiants Shopify">Ces identifiants restent côté serveur et ne sont jamais affichés après enregistrement.</InfoTip></div>
+    <div className="info-line"><h2>{replacement ? "Remplacer les identifiants" : "Connecter ma boutique"}</h2><InfoTip label="Confidentialité des identifiants Shopify">Ces identifiants restent côté serveur et ne sont jamais affichés après enregistrement.</InfoTip></div>
     <div className="form-grid">
-      <div className="field"><label htmlFor={replacement ? "replacementShopDomain" : "shopDomain"}>Boutique Shopify</label>{replacement ? <><input className="input" id="replacementShopDomain" value={shopDomain} readOnly aria-readonly="true"/><input type="hidden" name="shopDomain" value={shopDomain}/></> : <input className="input" id="shopDomain" name="shopDomain" defaultValue={shopDomain} placeholder="ma-boutique.myshopify.com" autoComplete="off" required/>}</div>
-      <div className="field"><label htmlFor={replacement ? "replacementClientId" : "clientId"}>Client ID</label><input className="input" id={replacement ? "replacementClientId" : "clientId"} name="clientId" autoComplete="off" required/></div>
-      <div className="field"><label htmlFor={replacement ? "replacementClientSecret" : "clientSecret"}>Client Secret</label><input className="input" id={replacement ? "replacementClientSecret" : "clientSecret"} name="clientSecret" type="password" autoComplete="new-password" required/></div>
+      <div className="field"><label htmlFor={replacement ? "replacementShopDomain" : "shopDomain"}>Boutique Shopify</label>{replacement ? <><input className="input" id="replacementShopDomain" value={shopDomain} readOnly aria-readonly="true"/><input type="hidden" name="shopDomain" value={shopDomain}/></> : <input className="input" id="shopDomain" name="shopDomain" defaultValue={shopDomain} placeholder="ma-boutique.myshopify.com" autoComplete="off" required/>}<p className="field-hint">L’adresse qui se termine par .myshopify.com (étape 5 du guide).</p></div>
+      <div className="field"><label htmlFor={replacement ? "replacementClientId" : "clientId"}>Client ID (Shopify → Settings → Credentials)</label><input className="input" id={replacement ? "replacementClientId" : "clientId"} name="clientId" autoComplete="off" required/></div>
+      <div className="field"><label htmlFor={replacement ? "replacementClientSecret" : "clientSecret"}>Client Secret (Shopify → Settings → Credentials)</label><input className="input" id={replacement ? "replacementClientSecret" : "clientSecret"} name="clientSecret" type="password" autoComplete="new-password" required/></div>
     </div>
     <SubmitButton>Connecter Shopify</SubmitButton>
   </form>;
