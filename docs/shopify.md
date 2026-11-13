@@ -45,8 +45,33 @@ Avant une déconnexion, YrelCompta relit obligatoirement les subscriptions live 
 
 Le Route Handler Node rejette un `Content-Length` supérieur à 5 Mio avant la lecture et lit ensuite le flux brut avec la même limite, sans allocation complète non bornée. La plateforme d’hébergement conserve également ses propres limites de requête. Le handler calcule le HMAC-SHA256 avec le secret courant puis, uniquement pendant la grâce, avec le secret précédent, en effectuant chaque comparaison en temps constant avant tout `JSON.parse`. Une livraison valide enregistre uniquement les en-têtes utiles, les identifiants Shopify minimaux et le SHA-256 du payload. Le payload complet, les noms, emails, téléphones et adresses ne sont pas persistés. La contrainte `(connection_id, webhook_id)` rend les redeliveries idempotentes.
 
-## Limite comptable volontaire
+## Import des commandes en ventes
 
-Cette PR ne crée, ne modifie et ne valide aucune vente, aucun encaissement et aucun remboursement YrelCompta. Les événements restent au statut `pending` pour la prochaine étape : relire les commandes Shopify par GraphQL, puis produire une vente YrelCompta selon des règles métier relues séparément.
+Les webhooks de commande déclenchent la relecture de la commande par GraphQL (`src/lib/shopify/orders.ts`,
+`order-sync.ts`), puis la RPC serveur `shopify_import_order` (migration `20261113120000_shopify_order_import.sql`).
+
+- **Une commande = une vente** du canal `shopify`, identifiée par `shopify_order_imports(business_id, shopify_order_gid)` :
+  une relivraison ou une relecture ne crée jamais de doublon.
+- **Produits** : lien mémorisé de la variante, puis du produit (`shopify_product_links`), puis SKU identique et unique.
+  Les produits non reconnus se relient une fois dans **Ventes > Commandes Shopify** ; les commandes concernées sont
+  alors relancées automatiquement.
+- **Validation automatique** quand tous les produits sont reliés, que lignes + port − remise = total, en euros et sans
+  TVA : la vente est validée (snapshot des coûts) et l’encaissement enregistré avec les frais Shopify Payments.
+  Sinon la vente reste en brouillon « à compléter ».
+- **Ventes validées inaltérables** : une annulation ou un remboursement Shopify est seulement signalé ; l’utilisatrice
+  enregistre le remboursement ou l’annulation, puis marque le signalement comme traité. Un brouillon annulé sur Shopify
+  est supprimé.
+- **Identité** : les RPC de vente existantes contrôlent `auth.uid()`. Pour un webhook, `shopify_import_order`
+  (réservée à `service_role`) vérifie que l’acteur (la personne qui a connecté Shopify, à défaut la propriétaire) est
+  membre de l’entreprise, puis fixe `request.jwt.claims` pour la transaction. Le journal d’audit porte
+  `oauth_client_id = 'shopify-sync'`.
+- **Données clientes** : seul le nom de facturation est lu, par une requête séparée tolérante au masquage des données
+  protégées ; il n’est jamais stocké dans l’instantané de commande. Ni e-mail, ni téléphone, ni adresse.
+- **Historique** : import des commandes payées (ou remboursées ensuite) depuis une date, 500 au plus par import.
+  Sans la permission `read_all_orders`, Shopify limite l’accès aux 60 derniers jours.
+
+La logique SQL a été exécutée de bout en bout dans PostgreSQL 18 (PGlite) avec toutes les migrations : commande
+complète, idempotence, produit à relier puis validé, total incohérent, annulations, remboursement, commandes non payées,
+de test ou en devise, TVA et contrôles d’accès.
 
 Références : [Client Credentials Grant Shopify](https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/client-credentials-grant), [vérification des webhooks Shopify](https://shopify.dev/docs/apps/build/webhooks/verify-deliveries), [Supabase Vault](https://supabase.com/docs/guides/database/vault), [clés Supabase publishable et secret](https://supabase.com/docs/guides/getting-started/api-keys).

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ConfirmSubmitButton } from "@/components/sales/confirm-submit-button";
 import { InfoTip } from "@/components/ui/info-tip";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -39,6 +40,7 @@ export function ConnectedShopify({ status }: { status: ShopifyConnectionStatus }
         <div><dt>Dernière vérification</dt><dd>{verified}</dd></div>
       </dl>
       <div className="form-actions shopify-actions">
+        <Link className="button-link" href="/ventes/shopify">Voir les commandes Shopify</Link>
         <form action={testShopifyConnectionAction}><SubmitButton>Tester la connexion</SubmitButton></form>
         <form action={verifyShopifyWebhooksAction}><SubmitButton>Vérifier les webhooks</SubmitButton></form>
         <form action={disconnectShopifyAction}><ConfirmSubmitButton danger message="Déconnecter Shopify et supprimer les secrets enregistrés ?">Déconnecter Shopify</ConfirmSubmitButton></form>

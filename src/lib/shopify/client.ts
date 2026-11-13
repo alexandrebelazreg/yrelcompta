@@ -62,6 +62,35 @@ export async function shopifyGraphql<T>({
   return envelope.data;
 }
 
+/**
+ * Variante tolérante : renvoie les données même si Shopify masque certains champs protégés
+ * (données clientes non autorisées : HTTP 200 avec une entrée dans `errors`).
+ */
+export async function shopifyGraphqlPartial<T>(options: Parameters<typeof shopifyGraphql<T>>[0]): Promise<{ data: T | null; redacted: boolean }> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  let response: Response;
+  try {
+    response = await fetchImpl(shopifyAdminGraphqlUrl(options.shopDomain), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": options.accessToken },
+      body: JSON.stringify({ query: options.query, variables: options.variables }),
+      cache: "no-store",
+    });
+  } catch {
+    return { data: null, redacted: false };
+  }
+  if (!response.ok) return { data: null, redacted: false };
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    return { data: null, redacted: false };
+  }
+  if (!isRecord(payload)) return { data: null, redacted: false };
+  const envelope = payload as GraphqlEnvelope<T>;
+  return { data: envelope.data ?? null, redacted: Boolean(envelope.errors?.length) };
+}
+
 const SHOP_QUERY = `#graphql
   query YrelComptaShopConnection {
     shop {

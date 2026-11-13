@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeShopDomain } from "@/lib/shopify/domain";
 import { ShopifyError } from "@/lib/shopify/errors";
+import { processShopifyOrderWebhook } from "@/lib/shopify/order-sync";
 import { getShopifyBackendCredentialsByDomain } from "@/lib/shopify/token-manager";
 import {
   extractShopifyResourceIds,
@@ -89,7 +90,7 @@ export async function POST(request: Request): Promise<Response> {
     const eventId = request.headers.get("x-shopify-event-id");
 
     const admin = createAdminClient();
-    const { error } = await admin.rpc("record_shopify_webhook_event", {
+    const { data: inserted, error } = await admin.rpc("record_shopify_webhook_event", {
       p_connection_id: credentials.connection_id,
       p_business_id: credentials.business_id,
       p_webhook_id: webhookId.slice(0, 200),
@@ -109,6 +110,13 @@ export async function POST(request: Request): Promise<Response> {
         shop_domain: shopDomain,
       });
       return new Response(null, { status: 503 });
+    }
+
+    // Nouvelle livraison seulement : une relivraison du même webhook n'importe pas deux fois la commande.
+    // L'échec de l'import est noté sur l'événement (relance possible depuis l'application) sans faire
+    // relivrer le webhook par Shopify.
+    if (inserted === true) {
+      await processShopifyOrderWebhook({ connectionId: credentials.connection_id, webhookId: webhookId.slice(0, 200), orderGid });
     }
 
     return new Response(null, { status: 204 });
