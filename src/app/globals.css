@@ -840,6 +840,26 @@ button.table-action-link { background: none; border: 0; cursor: pointer; font: i
 .supplier-table .supplier-address { max-width: 220px; }
 .profitability-table { min-width: 560px; }
 .recurring-options { align-items: center; display: flex; flex-wrap: wrap; gap: .55rem .8rem; }
+/* Commandes Shopify */
+.shopify-orders-alert { align-items: center; display: flex; flex-wrap: wrap; gap: .6rem 1rem; justify-content: space-between; }
+.shopify-orders-alert p { margin: 0; }
+.shopify-link-list, .shopify-review-list { display: grid; gap: .7rem; list-style: none; margin: 0; padding: 0; }
+.shopify-link-list > li, .shopify-review-list > li { border-top: 1px solid var(--color-border); display: grid; gap: .45rem; padding-top: .7rem; }
+.shopify-link-list > li:first-child, .shopify-review-list > li:first-child { border-top: 0; padding-top: 0; }
+.shopify-link-form { align-items: center; display: grid; gap: .5rem; grid-template-columns: minmax(0, 1fr) auto; }
+.shopify-review-list ul { display: grid; gap: .4rem; list-style: none; margin: 0; padding: 0; }
+.shopify-history-form { align-items: end; display: flex; flex-wrap: wrap; gap: .6rem; }
+.shopify-orders-alert strong, .shopify-link-list strong, .shopify-review-list strong { display: inline; font-size: inherit; font-weight: 650; letter-spacing: normal; }
+.shopify-orders-table { min-width: 640px; }
+@media (max-width: 768px) {
+  .shopify-link-form { grid-template-columns: 1fr; }
+  .shopify-orders-table .shopify-order-main,
+  .shopify-orders-table .shopify-order-total { display: block; }
+  .shopify-orders-table .shopify-order-main { grid-column: 1; grid-row: 1; }
+  .shopify-orders-table .shopify-order-total { grid-column: 2; grid-row: 1; }
+  .shopify-orders-table .compact-mobile-context { grid-column: 1 / -1; grid-row: 2; }
+}
+
 /* Connecteur Claude : consentement OAuth et paramètres */
 .consent-section { background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-card); margin: 1rem 0; padding: .85rem 1rem; }
 .consent-section h2 { font-size: .95rem; margin: .2rem 0 .35rem; }
