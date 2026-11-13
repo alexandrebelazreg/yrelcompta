@@ -61,3 +61,30 @@ export async function countFailedShopifyEvents(businessId: string): Promise<numb
     return 0;
   }
 }
+
+export interface ShopifySyncStatus {
+  lastSyncAt: string | null;
+  ordersSyncedThrough: string | null;
+  lastSyncErrorCode: string | null;
+  lastWebhookError: string | null;
+}
+
+/** Fréquence de la synchronisation automatique par l'API. */
+export const SHOPIFY_SYNC_INTERVAL_MS = 15 * 60 * 1000;
+
+export async function getShopifySyncStatus(businessId: string): Promise<ShopifySyncStatus | null> {
+  const supabase = await createClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc("get_shopify_sync_status", { p_business_id: businessId });
+  if (error) {
+    console.error("État de synchronisation Shopify indisponible", { code: error.code });
+    return null;
+  }
+  const row = (Array.isArray(data) ? data[0] : data) as Record<string, string | null> | undefined;
+  if (!row) return null;
+  return { lastSyncAt: row.last_sync_at, ordersSyncedThrough: row.orders_synced_through, lastSyncErrorCode: row.last_sync_error_code, lastWebhookError: row.last_webhook_error };
+}
+
+export function isShopifySyncStale(status: ShopifySyncStatus | null, now = Date.now()): boolean {
+  return !status?.lastSyncAt || now - Date.parse(status.lastSyncAt) > SHOPIFY_SYNC_INTERVAL_MS;
+}

@@ -25,7 +25,7 @@ interface WebhookListData {
 }
 
 function assertNoUserErrors(errors: UserError[] | undefined): void {
-  if (errors?.length) throw new ShopifyError("SHOPIFY_GRAPHQL_ERROR");
+  if (errors?.length) throw new ShopifyError("SHOPIFY_GRAPHQL_ERROR", undefined, errors.map((error) => error.message).filter(Boolean).join(" ; "));
 }
 
 export function isShopifyWebhookTopic(value: string): value is ShopifyWebhookTopic {

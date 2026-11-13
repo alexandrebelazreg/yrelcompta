@@ -8,7 +8,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getTodayInParis } from "@/lib/utils/date";
 import { shopifyErrorMessage } from "./errors";
-import { importShopifyHistory, syncShopifyOrder } from "./order-sync";
+import { importShopifyHistory, syncRecentShopifyOrders, syncShopifyOrder } from "./order-sync";
+import { getShopifySyncStatus, isShopifySyncStale } from "./order-queries";
 import { getShopifyConnectionStatus } from "./queries";
 
 const PAGE = "/ventes/shopify";
@@ -115,4 +116,27 @@ export async function retryFailedShopifyEventsAction() {
     }
   }
   back({ message: "relance-notifications", reussies: String(succeeded), total: String(orderGids.length) });
+}
+
+/** Bouton « Synchroniser maintenant » : relit les commandes récentes chez Shopify. */
+export async function syncShopifyNowAction() {
+  const { userId, businessId } = await context();
+  const connection = await connectionId(businessId);
+  const sync = await getShopifySyncStatus(businessId);
+  const result = await syncRecentShopifyOrders({ connectionId: connection, syncedThrough: sync?.ordersSyncedThrough ?? null, actor: userId });
+  if (result.errorCode && result.imported === 0 && result.failed === 0) back({ erreur: "Shopify n’a pas répondu. Réessayez dans quelques minutes." });
+  back({ message: "synchronise", importees: String(result.imported), echecs: String(result.failed) });
+}
+
+/** Synchronisation à l'ouverture de la page, seulement si la dernière date de plus de 15 minutes. */
+export async function autoSyncShopifyAction(): Promise<{ synced: boolean }> {
+  const { userId, context: app } = await getAuthenticatedContext();
+  if (!userId || !app.business) return { synced: false };
+  const status = await getShopifyConnectionStatus(app.business.id);
+  if (!status) return { synced: false };
+  const sync = await getShopifySyncStatus(app.business.id);
+  if (!isShopifySyncStale(sync)) return { synced: false };
+  await syncRecentShopifyOrders({ connectionId: status.id, syncedThrough: sync?.ordersSyncedThrough ?? null, actor: userId });
+  revalidatePath(PAGE);
+  return { synced: true };
 }

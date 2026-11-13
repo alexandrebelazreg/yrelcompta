@@ -5,6 +5,7 @@ export const SHOPIFY_ORDER_FIELDS = `
   name
   test
   processedAt
+  updatedAt
   cancelledAt
   currencyCode
   displayFinancialStatus
@@ -50,6 +51,16 @@ export const SHOPIFY_ORDERS_QUERY = `#graphql
   }
 `;
 
+/** Commandes créées ou modifiées depuis la dernière synchronisation, de la plus ancienne à la plus récente. */
+export const SHOPIFY_RECENT_ORDERS_QUERY = `#graphql
+  query YrelComptaRecentOrders($query: String!, $after: String) {
+    orders(first: 50, after: $after, query: $query, sortKey: UPDATED_AT) {
+      nodes { ${SHOPIFY_ORDER_FIELDS} }
+      pageInfo { hasNextPage endCursor }
+    }
+  }
+`;
+
 /** Nom de la cliente, demandé à part : Shopify peut le masquer (données clientes protégées). */
 export const SHOPIFY_ORDER_CUSTOMER_QUERY = `#graphql
   query YrelComptaOrderCustomer($id: ID!) {
@@ -64,6 +75,7 @@ export interface ShopifyOrderNode {
   name: string;
   test: boolean;
   processedAt: string;
+  updatedAt?: string;
   cancelledAt: string | null;
   currencyCode: string;
   displayFinancialStatus: string | null;
@@ -179,4 +191,34 @@ export function customerNameFrom(data: { order?: { billingAddress?: { firstName?
 export function shopifyHistoryQuery(since: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(since)) throw new Error("SHOPIFY_DATE_INVALID");
   return `created_at:>='${since}' (financial_status:paid OR financial_status:partially_refunded OR financial_status:refunded)`;
+}
+
+/** Chevauchement entre deux synchronisations, pour ne manquer aucune commande modifiée pendant un passage. */
+const SYNC_OVERLAP_MS = 10 * 60 * 1000;
+/** Première synchronisation : les deux derniers jours (l'historique plus ancien s'importe à la demande). */
+const FIRST_SYNC_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
+
+/** Date de modification Shopify à partir de laquelle relire les commandes. */
+export function shopifySyncSince(syncedThrough: string | null, now = Date.now()): string {
+  const base = syncedThrough ? Date.parse(syncedThrough) - SYNC_OVERLAP_MS : now - FIRST_SYNC_WINDOW_MS;
+  if (!Number.isFinite(base)) return new Date(now - FIRST_SYNC_WINDOW_MS).toISOString();
+  return new Date(Math.min(base, now)).toISOString();
+}
+
+export function shopifyRecentQuery(sinceIso: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(sinceIso)) throw new Error("SHOPIFY_DATE_INVALID");
+  return `updated_at:>='${sinceIso}'`;
+}
+
+/**
+ * Jusqu'où la synchronisation est acquise : la date de modification de la dernière commande importée
+ * avant le premier échec. Les commandes suivantes seront relues au prochain passage.
+ */
+export function shopifySyncedThrough(results: Array<{ updatedAt: string | undefined; ok: boolean }>): string | null {
+  let through: string | null = null;
+  for (const result of results) {
+    if (!result.ok) break;
+    if (result.updatedAt && (!through || result.updatedAt > through)) through = result.updatedAt;
+  }
+  return through;
 }

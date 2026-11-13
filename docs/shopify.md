@@ -52,6 +52,26 @@ Le Route Handler Node rejette un `Content-Length` supérieur à 5 Mio avant la l
 
 ## Import des commandes en ventes
 
+### Synchronisation par l’API (sans webhooks)
+
+Sur l’offre **Basic**, Shopify peut refuser les webhooks de commandes à une app marchande (pas d’accès aux
+données clientes protégées de niveau 2). La connexion reste valable : le message renvoyé par Shopify est conservé
+(`shopify_connections.last_webhook_error`) et affiché dans Paramètres > Shopify, et les commandes sont relues par
+l’API, qui reste accessible au niveau 1 sans donnée personnelle.
+
+- **Toutes les 15 minutes**, la fonction planifiée Netlify `netlify/functions/shopify-sync.mts` appelle
+  `POST /api/integrations/shopify/sync`. L’appel est signé par un HMAC horodaté (5 minutes) calculé avec
+  `SUPABASE_SECRET_KEY` : la clé ne transite pas et **aucune variable supplémentaire n’est à configurer**.
+- La route relit les commandes modifiées depuis `orders_synced_through` (moins 10 minutes de chevauchement ; deux
+  jours lors du premier passage), puis les importe par la même RPC que les webhooks : aucun doublon.
+- La date de synchronisation n’avance jamais au-delà d’une commande en échec, et ne recule jamais. Chaque passage
+  s’arrête après 7 secondes (limite des fonctions Netlify) et reprend au suivant.
+- Dans Ventes > Commandes Shopify : bouton « Synchroniser maintenant », et synchronisation à l’ouverture de la page
+  si la dernière date de plus de 15 minutes.
+- Pourquoi pas une app d’une organisation Partenaire : le Client Credentials Grant ne fonctionne qu’au sein d’une
+  même organisation, et depuis le 20 novembre 2026 une app personnalisée installée hors de son organisation exige
+  une liste d’adresses IP autorisées, impossible avec les adresses dynamiques de Netlify.
+
 Les webhooks de commande déclenchent la relecture de la commande par GraphQL (`src/lib/shopify/orders.ts`,
 `order-sync.ts`), puis la RPC serveur `shopify_import_order` (migration `20261113120000_shopify_order_import.sql`).
 

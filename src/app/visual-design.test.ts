@@ -171,11 +171,11 @@ describe("identité visuelle Poudré chic", () => {
   it("intègre Shopify aux paramètres avec une présentation compacte et responsive", () => {
     expect(settings).toContain('href="/parametres/shopify"');
     expect(settings).toContain("Configurer Shopify");
-    expect(shopifySettings).toContain("<ConnectedShopify status={status}/>");
+    expect(shopifySettings).toContain("<ConnectedShopify status={status} sync={sync}/>");
     expect(shopifyUi).toContain("<InfoTip");
     expect(shopifyUi).toContain('type="password"');
     expect(shopifyUi).toContain("Tester la connexion");
-    expect(shopifyUi).toContain("Vérifier les webhooks");
+    expect(shopifyUi).toContain("Réessayer les notifications");
     expect(shopifyUi).toContain("Remplacer les identifiants");
     expect(shopifyUi).toContain("Déconnecter Shopify");
     expect(styles).toContain(".shopify-status-grid");
