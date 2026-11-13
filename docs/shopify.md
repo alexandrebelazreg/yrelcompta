@@ -4,6 +4,11 @@ Cette première intégration relie une entreprise YrelCompta à une boutique app
 
 ## Connexion et authentification
 
+Le mode d’emploi destiné à l’utilisatrice (création de l’app dans le Dev Dashboard Shopify, permissions,
+installation, identifiants et dépannage) est affiché directement dans **Paramètres > Shopify**
+(`src/components/shopify/shopify-guide.tsx`). Depuis janvier 2026, les nouvelles apps personnalisées se créent
+dans le Dev Dashboard (`dev.shopify.com`) et non plus depuis l’administration de la boutique.
+
 L’utilisateur renseigne le domaine de sa boutique, le Client ID et le Client Secret dans **Paramètres > Shopify**. Le domaine est normalisé vers `*.myshopify.com` et strictement validé avant toute requête afin d’éviter les cibles arbitraires et les SSRF.
 
 L’authentification Shopify est isolée dans `src/lib/shopify/auth.ts`. Elle utilise le Client Credentials Grant et la GraphQL Admin API stable `2026-07`. Ce mode est réservé aux apps et boutiques détenues par la même organisation Shopify. Une évolution OAuth pourra remplacer cette couche sans modifier le reste de l’intégration.
