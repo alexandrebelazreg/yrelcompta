@@ -21,10 +21,19 @@ export type ShopifyErrorCode =
   | "SHOPIFY_WEBHOOK_INVALID";
 
 export class ShopifyError extends Error {
-  constructor(public readonly code: ShopifyErrorCode, public readonly httpStatus?: number) {
+  /** Message renvoyé par Shopify (userErrors), sans secret, pour expliquer un refus. */
+  public detail?: string;
+
+  constructor(public readonly code: ShopifyErrorCode, public readonly httpStatus?: number, detail?: string) {
     super(code);
     this.name = "ShopifyError";
+    if (detail) this.detail = sanitizeShopifyDetail(detail);
   }
+}
+
+/** Garde un message Shopify lisible et sans risque d'injection dans l'URL ou la page. */
+export function sanitizeShopifyDetail(detail: string): string {
+  return detail.replace(/[\u0000-\u001f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, 300);
 }
 
 const frenchMessages: Record<ShopifyErrorCode, string> = {

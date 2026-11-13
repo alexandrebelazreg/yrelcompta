@@ -14,7 +14,7 @@ const troubleshooting: Array<{ problem: string; solution: string }> = [
   { problem: "« Les identifiants Shopify ont été refusés »", solution: "Le Client ID ou le Client Secret est incorrect. Recopiez-les depuis Settings → Credentials, sans espace avant ni après." },
   { problem: "« La permission Shopify read_orders (ou read_products) est manquante »", solution: "Ajoutez les deux permissions dans une nouvelle version de l’app (étape 2), publiez-la avec Release, puis acceptez les nouvelles permissions dans l’administration Shopify de la boutique." },
   { problem: "« Seules les boutiques Shopify en EUR sont prises en charge »", solution: "La devise de la boutique doit être l’euro (Paramètres Shopify → Paramètres généraux → Devise de la boutique)." },
-  { problem: "« Les webhooks Shopify ne sont que partiellement configurés »", solution: "Cliquez sur « Vérifier les webhooks ». Si le problème persiste, déconnectez puis reconnectez Shopify." },
+  { problem: "« Notifications instantanées : 0/5 » ou « synchronisation par l’API »", solution: "Shopify refuse les notifications instantanées à certaines boutiques, notamment sur l’offre Basic (pas d’accès aux données clientes protégées). Ce n’est pas bloquant : YrelCompta récupère vos commandes automatiquement toutes les 15 minutes, et vous pouvez cliquer sur « Synchroniser maintenant » dans Ventes → Commandes Shopify." },
   { problem: "« Cette boutique Shopify est déjà reliée à une autre entreprise YrelCompta »", solution: "Une boutique ne peut être reliée qu’à une seule entreprise. Déconnectez-la d’abord de l’autre compte." },
 ];
 

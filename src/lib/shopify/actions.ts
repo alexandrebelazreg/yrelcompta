@@ -54,6 +54,13 @@ async function markShopifyWebhooksPartial(
   }
 }
 
+/** Garde la raison donnée par Shopify (ou l'efface quand les webhooks sont actifs). */
+async function recordShopifyWebhookError(context: { businessId: string }, connectionId: string, error: unknown) {
+  const detail = error instanceof ShopifyError ? error.detail ?? null : null;
+  const { error: rpcError } = await createAdminClient().rpc("record_shopify_webhook_error", { p_connection_id: connectionId, p_business_id: context.businessId, p_message: detail });
+  if (rpcError) console.error("Raison du refus des webhooks non enregistrée", { code: rpcError.code });
+}
+
 function errorRedirect(error: unknown, context: { businessId?: string; connectionId?: string; shopDomain?: string } = {}): never {
   console.error("Action Shopify refusée", {
     code: shopifyErrorCode(error),
@@ -77,6 +84,7 @@ export async function connectShopifyAction(formData: FormData) {
 
   let shopDomain: string | undefined;
   let connectionId: string | undefined;
+  let webhooksUnavailable = false;
   try {
     shopDomain = normalizeShopDomain(parsed.data.shopDomain);
     const webhookUrl = getShopifyWebhookUrl();
@@ -110,6 +118,8 @@ export async function connectShopifyAction(formData: FormData) {
     if (typeof data !== "string") throw new ShopifyError("SHOPIFY_RESPONSE_INVALID");
     connectionId = data;
 
+    // Sans webhooks (refusés par Shopify, par exemple sur l'offre Basic), la connexion reste valable :
+    // les commandes sont alors récupérées par l'API toutes les 15 minutes.
     let subscriptions;
     try {
       subscriptions = await reconcileShopifyWebhooks({
@@ -120,17 +130,22 @@ export async function connectShopifyAction(formData: FormData) {
       });
     } catch (error) {
       if (error instanceof ShopifyError && error.code === "SITE_URL_INVALID") throw error;
-      throw new ShopifyError("SHOPIFY_WEBHOOKS_PARTIAL");
+      await recordShopifyWebhookError(context, connectionId, error);
+      webhooksUnavailable = true;
     }
-    const stored = await admin.rpc("replace_shopify_webhook_subscriptions", {
-      p_connection_id: connectionId,
-      p_business_id: context.businessId,
-      p_actor: context.userId,
-      p_subscriptions: subscriptions,
-    });
-    if (stored.error || stored.data !== 5) {
-      await markShopifyWebhooksPartial(context, connectionId);
-      throw new ShopifyError("SHOPIFY_WEBHOOKS_PARTIAL");
+    if (subscriptions) {
+      const stored = await admin.rpc("replace_shopify_webhook_subscriptions", {
+        p_connection_id: connectionId,
+        p_business_id: context.businessId,
+        p_actor: context.userId,
+        p_subscriptions: subscriptions,
+      });
+      if (stored.error || stored.data !== 5) {
+        await markShopifyWebhooksPartial(context, connectionId);
+        webhooksUnavailable = true;
+      } else {
+        await recordShopifyWebhookError(context, connectionId, null);
+      }
     }
   } catch (error) {
     errorRedirect(error, { businessId: context.businessId, connectionId, shopDomain });
@@ -138,7 +153,7 @@ export async function connectShopifyAction(formData: FormData) {
 
   revalidatePath("/parametres");
   revalidatePath("/parametres/shopify");
-  redirect("/parametres/shopify?message=connecte");
+  redirect(`/parametres/shopify?message=${webhooksUnavailable ? "connecte-api" : "connecte"}`);
 }
 
 export async function testShopifyConnectionAction() {
@@ -172,6 +187,7 @@ export async function verifyShopifyWebhooksAction() {
   const status = await getShopifyConnectionStatus(context.businessId);
   if (!status) errorRedirect(new ShopifyError("SHOPIFY_CONNECTION_NOT_FOUND"), { businessId: context.businessId });
 
+  let webhooksUnavailable = false;
   try {
     const { accessToken, credentials } = await getShopifyAccessToken(status.id);
     const admin = createAdminClient();
@@ -182,26 +198,32 @@ export async function verifyShopifyWebhooksAction() {
         accessToken,
         webhookUrl: getShopifyWebhookUrl(),
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof ShopifyError && error.code === "SITE_URL_INVALID") throw error;
       await markShopifyWebhooksPartial(context, status.id);
-      throw new ShopifyError("SHOPIFY_WEBHOOKS_PARTIAL");
+      await recordShopifyWebhookError(context, status.id, error);
+      webhooksUnavailable = true;
     }
-    const { data, error } = await admin.rpc("replace_shopify_webhook_subscriptions", {
-      p_connection_id: status.id,
-      p_business_id: context.businessId,
-      p_actor: context.userId,
-      p_subscriptions: subscriptions,
-    });
-    if (error || data !== 5) {
-      await markShopifyWebhooksPartial(context, status.id);
-      throw new ShopifyError("SHOPIFY_WEBHOOKS_PARTIAL");
+    if (subscriptions) {
+      const { data, error } = await admin.rpc("replace_shopify_webhook_subscriptions", {
+        p_connection_id: status.id,
+        p_business_id: context.businessId,
+        p_actor: context.userId,
+        p_subscriptions: subscriptions,
+      });
+      if (error || data !== 5) {
+        await markShopifyWebhooksPartial(context, status.id);
+        webhooksUnavailable = true;
+      } else {
+        await recordShopifyWebhookError(context, status.id, null);
+      }
     }
   } catch (error) {
     errorRedirect(error, { businessId: context.businessId, connectionId: status.id, shopDomain: status.shop_domain });
   }
 
   revalidatePath("/parametres/shopify");
-  redirect("/parametres/shopify?message=webhooks-verifies");
+  redirect(`/parametres/shopify?message=${webhooksUnavailable ? "webhooks-indisponibles" : "webhooks-verifies"}`);
 }
 
 export async function disconnectShopifyAction() {

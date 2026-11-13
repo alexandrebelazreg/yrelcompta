@@ -1,12 +1,13 @@
 import Link from "next/link";
+import { ShopifyAutoSync } from "@/components/shopify/shopify-auto-sync";
 import { FlashToast } from "@/components/ui/flash-toast";
 import { InfoTip } from "@/components/ui/info-tip";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { getAuthenticatedContext } from "@/lib/auth/context";
 import { listProducts } from "@/lib/products/queries";
 import { formatEuroCents } from "@/lib/sales/calculations";
-import { dismissShopifyAttentionAction, importShopifyHistoryAction, linkShopifyProductAction, reprocessShopifyImportAction, retryFailedShopifyEventsAction } from "@/lib/shopify/order-actions";
-import { countFailedShopifyEvents, listShopifyOrderImports, productsToLink, type ShopifyImportStatus } from "@/lib/shopify/order-queries";
+import { dismissShopifyAttentionAction, importShopifyHistoryAction, linkShopifyProductAction, reprocessShopifyImportAction, retryFailedShopifyEventsAction, syncShopifyNowAction } from "@/lib/shopify/order-actions";
+import { countFailedShopifyEvents, getShopifySyncStatus, isShopifySyncStale, listShopifyOrderImports, productsToLink, type ShopifyImportStatus } from "@/lib/shopify/order-queries";
 import { getShopifyConnectionStatus } from "@/lib/shopify/queries";
 import { getTodayInParis } from "@/lib/utils/date";
 import { formatFrenchDate } from "@/lib/utils/format";
@@ -36,6 +37,7 @@ const messages: Record<string, (q: Record<string, string>) => string> = {
   relancee: () => "La commande a été relancée.",
   traite: () => "Signalement marqué comme traité.",
   "relance-notifications": (q) => `${q.reussies ?? 0} commande(s) sur ${q.total ?? 0} importée(s).`,
+  synchronise: (q) => `Synchronisation terminée : ${q.importees ?? 0} commande(s) relue(s)${Number(q.echecs ?? 0) > 0 ? `, ${q.echecs} en échec (nouvel essai au prochain passage)` : ""}.`,
 };
 
 function sixtyDaysAgo(today: string): string {
@@ -59,11 +61,13 @@ export default async function ShopifyOrdersPage({ searchParams }: { searchParams
   }
 
   const today = getTodayInParis();
-  const [imports, products, failedEvents] = await Promise.all([
+  const [imports, products, failedEvents, sync] = await Promise.all([
     listShopifyOrderImports(context.business.id),
     listProducts(context.business.id, { active: "active" }),
     countFailedShopifyEvents(context.business.id),
+    getShopifySyncStatus(context.business.id),
   ]);
+  const lastSync = sync?.lastSyncAt ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" }).format(new Date(sync.lastSyncAt)) : null;
   const toLink = productsToLink(imports);
   const toReview = imports.filter((entry) => entry.attention.some((flag) => flag !== "unlinked_products") || entry.status === "needs_review");
   const message = query.message && messages[query.message] ? messages[query.message](query) : null;
@@ -72,6 +76,15 @@ export default async function ShopifyOrdersPage({ searchParams }: { searchParams
     {header}
     {message && <FlashToast message={message}/>}
     {query.erreur && <p className="form-message" role="alert">{query.erreur}</p>}
+    {isShopifySyncStale(sync) && !query.message && <ShopifyAutoSync/>}
+
+    <section className="card shopify-sync-card" aria-label="Synchronisation avec Shopify">
+      <div>
+        <p><strong>Synchronisation automatique</strong> toutes les 15 minutes{connection.webhook_count === connection.expected_webhook_count ? ", en plus des notifications instantanées de Shopify" : ""}.</p>
+        <p className="compact-secondary-text">{lastSync ? `Dernière synchronisation : ${lastSync}` : "Aucune synchronisation pour l’instant."}{sync?.lastSyncErrorCode ? " · Le dernier passage a rencontré une erreur : un nouvel essai aura lieu automatiquement." : ""}</p>
+      </div>
+      <form action={syncShopifyNowAction}><SubmitButton>Synchroniser maintenant</SubmitButton></form>
+    </section>
 
     {failedEvents > 0 && <section className="card shopify-orders-alert">
       <p><strong>{failedEvents} notification(s) Shopify</strong> n’ont pas pu être importées (Shopify indisponible, produit supprimé…).</p>
