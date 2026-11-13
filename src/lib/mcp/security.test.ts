@@ -11,6 +11,7 @@ const mcpSources = [
   "src/app/api/mcp/route.ts",
   "src/lib/mcp/write-tools.ts",
   "src/lib/mcp/sales-tools.ts",
+  "src/lib/mcp/management-tools.ts",
   "src/app/.well-known/oauth-protected-resource/[[...path]]/route.ts",
   "src/app/(auth)/oauth/consent/page.tsx",
   "src/app/(app)/parametres/claude/page.tsx",
@@ -57,6 +58,14 @@ describe("sécurité du connecteur Claude", () => {
     expect(sales).not.toMatch(/\.insert\(|\.update\(|\.delete\(|\.upsert\(/);
     expect(sales).not.toMatch(/issue_invoice|issue_credit_note|record_payment|record_refund|validate_sale|cancel_sale|delete_sale/);
     expect(sales.match(/kind: "write"/g)).toHaveLength(1);
+  });
+
+  it("limite la gestion complète aux RPC contrôlées de l’application, sans accès direct aux tables", () => {
+    const management = read("src/lib/mcp/management-tools.ts");
+    const rpcs = [...management.matchAll(/rpc\(supabase, "([a-z_]+)"/g)].map((match) => match[1]);
+    expect([...new Set(rpcs)].sort()).toEqual(["archive_material", "archive_product", "archive_recurring_expense_template", "archive_supplier", "cancel_expense", "cancel_sale", "create_expense_from_recurring_template", "delete_expense_draft", "delete_sale_draft", "issue_credit_note", "issue_invoice", "record_expense_payment", "record_expense_refund", "record_payment", "record_refund", "save_product_with_recipe", "update_costing_settings", "update_expense_draft", "update_material_category", "update_recurring_expense_template", "update_sale_draft", "update_supplier", "validate_expense", "validate_sale"]);
+    expect(management).not.toMatch(/\.from\(|\.insert\(|\.update\(|\.delete\(|\.upsert\(/);
+    expect(management).not.toMatch(/save_invoice_settings|fiscal_profile|attach_expense_document|delete_draft_expense_document|shopify_connection/i);
   });
 
   it("ne transmet pas les coordonnées des acheteurs", () => {

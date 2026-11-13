@@ -55,6 +55,35 @@ function documentSummary(document: BillingDocument) {
   };
 }
 
+/** Retrouve une vente par identifiant ou par référence (V-2026-0001). */
+export async function findSale(businessId: string, key: string): Promise<Sale> {
+  const id = z.string().uuid().safeParse(key).success ? key : (await listSales(businessId, { search: key })).find((sale) => lower(sale.reference) === lower(key))?.id;
+  const sale = id ? await getSale(businessId, id) : null;
+  if (!sale) throw new McpToolError(`Aucune vente ne correspond à « ${key} ».`);
+  return sale;
+}
+
+export const saleItemInput = z.object({
+  product: z.string().trim().max(160).optional().describe("Identifiant, SKU ou nom exact d’un produit du catalogue ; son prix est utilisé si unit_price est absent."),
+  description: z.string().trim().max(300).optional().describe("Libellé de la ligne ; le nom du produit par défaut."),
+  quantity: z.number().int().min(1).max(999).default(1),
+  unit_price: z.union([z.string().trim().max(20), z.number().nonnegative()]).transform(String).optional().describe("Prix unitaire TTC en euros, ex. \"45\"."),
+});
+
+/** Transforme les lignes saisies par Claude en lignes du formulaire de vente (produit du catalogue ou ligne libre). */
+export async function resolveSaleItems(businessId: string, items: Array<{ product?: string; description?: string; quantity: number; unit_price?: string }>) {
+  const products = items.some((item) => item.product) ? await listProducts(businessId, { active: "active" }) : [];
+  return items.map((item) => {
+    const product = item.product ? products.find((candidate) => candidate.id === item.product || lower(candidate.name) === lower(item.product ?? "") || (candidate.sku && lower(candidate.sku) === lower(item.product ?? ""))) : undefined;
+    if (item.product && !product) throw new McpToolError(`Aucun produit actif ne correspond à « ${item.product} ». Consultez list_products.`);
+    const description = item.description || product?.name;
+    if (!description) throw new McpToolError("Chaque ligne doit avoir un produit ou une description.");
+    const unitPrice = item.unit_price ?? (product ? (product.sale_price_cents / 100).toFixed(2) : undefined);
+    if (!unitPrice) throw new McpToolError(`Indiquez le prix unitaire de « ${description} ».`);
+    return { description, quantity: item.quantity, unitPrice, productId: product?.id ?? null };
+  });
+}
+
 export const salesReadTools: McpTool<McpToolContext>[] = [
   {
     name: "list_sales",
@@ -80,9 +109,7 @@ export const salesReadTools: McpTool<McpToolContext>[] = [
     input: z.object({ sale: z.string().trim().min(1).max(80).describe("Identifiant ou référence de la vente.") }),
     run: async (input, { businessId }) => {
       const { sale: key } = input as { sale: string };
-      const id = z.string().uuid().safeParse(key).success ? key : (await listSales(businessId, { search: key })).find((sale) => lower(sale.reference) === lower(key))?.id;
-      const sale = id ? await getSale(businessId, id) : null;
-      if (!sale) throw new McpToolError(`Aucune vente ne correspond à « ${key} ».`);
+      const sale = await findSale(businessId, key);
       const invoice = sale.status === "validated" ? await getInvoiceForSale(businessId, sale.id) : null;
       return {
         ...saleSummary(sale),
@@ -92,7 +119,7 @@ export const salesReadTools: McpTool<McpToolContext>[] = [
         notes: sale.notes,
         motif_annulation: sale.cancellation_reason,
         lignes: sale.sale_items.map((item) => ({ description: item.description, quantite: item.quantity, prix_unitaire: formatEuroCents(item.unit_price_cents), total: formatEuroCents(item.line_total_cents), produit: item.product_name_snapshot ?? item.product?.name ?? null })),
-        encaissements: sale.payments.map((payment) => ({ date: payment.received_on, moyen: paymentMethodLabels[payment.method], brut: formatEuroCents(payment.gross_amount_cents), commission: formatEuroCents(payment.platform_fee_cents), net_verse: formatEuroCents(payment.net_deposit_cents), remboursements: payment.refunds.map((refund) => ({ date: refund.refunded_on, montant: formatEuroCents(refund.amount_cents), type: refundKindLabels[refund.kind], motif: refund.reason })) })),
+        encaissements: sale.payments.map((payment) => ({ id: payment.id, date: payment.received_on, moyen: paymentMethodLabels[payment.method], brut: formatEuroCents(payment.gross_amount_cents), commission: formatEuroCents(payment.platform_fee_cents), net_verse: formatEuroCents(payment.net_deposit_cents), remboursements: payment.refunds.map((refund) => ({ id: refund.id, date: refund.refunded_on, montant: formatEuroCents(refund.amount_cents), type: refundKindLabels[refund.kind], motif: refund.reason })) })),
         facture: invoice ? { numero: invoice.number, emise_le: invoice.issuedOn, etat: billingCommercialStateLabels[invoice.commercialState] } : null,
       };
     },
@@ -185,28 +212,14 @@ export const salesWriteTools: McpTool<McpToolContext>[] = [
       ordered_on: isoDate("Date de commande").optional(),
       channel,
       customer_name: z.string().trim().max(160).optional().describe("Nom de la cliente, facultatif."),
-      items: z.array(z.object({
-        product: z.string().trim().max(160).optional().describe("Identifiant, SKU ou nom exact d’un produit du catalogue ; son prix est utilisé si unit_price est absent."),
-        description: z.string().trim().max(300).optional().describe("Libellé de la ligne ; le nom du produit par défaut."),
-        quantity: z.number().int().min(1).max(999).default(1),
-        unit_price: z.union([z.string().trim().max(20), z.number().nonnegative()]).transform(String).optional().describe("Prix unitaire TTC en euros, ex. \"45\"."),
-      })).min(1).max(200),
+      items: z.array(saleItemInput).min(1).max(200),
       shipping: z.union([z.string().trim().max(20), z.number().nonnegative()]).transform(String).optional().describe("Frais de port facturés, en euros."),
       discount: z.union([z.string().trim().max(20), z.number().nonnegative()]).transform(String).optional().describe("Remise totale, en euros."),
       notes: z.string().trim().max(2000).optional(),
     }),
     run: async (input, { supabase, businessId, origin }) => {
       const data = input as { ordered_on?: string; channel: SaleChannel; customer_name?: string; items: Array<{ product?: string; description?: string; quantity: number; unit_price?: string }>; shipping?: string; discount?: string; notes?: string };
-      const products = data.items.some((item) => item.product) ? await listProducts(businessId, { active: "active" }) : [];
-      const items = data.items.map((item) => {
-        const product = item.product ? products.find((candidate) => candidate.id === item.product || lower(candidate.name) === lower(item.product ?? "") || (candidate.sku && lower(candidate.sku) === lower(item.product ?? ""))) : undefined;
-        if (item.product && !product) throw new McpToolError(`Aucun produit actif ne correspond à « ${item.product} ». Consultez list_products.`);
-        const description = item.description || product?.name;
-        if (!description) throw new McpToolError("Chaque ligne doit avoir un produit ou une description.");
-        const unitPrice = item.unit_price ?? (product ? (product.sale_price_cents / 100).toFixed(2) : undefined);
-        if (!unitPrice) throw new McpToolError(`Indiquez le prix unitaire de « ${description} ».`);
-        return { description, quantity: item.quantity, unitPrice, productId: product?.id ?? null };
-      });
+      const items = await resolveSaleItems(businessId, data.items);
       const parsed = saleFormSchema.safeParse({ orderedOn: data.ordered_on ?? getTodayInParis(), channel: data.channel, customerName: data.customer_name ?? "", notes: data.notes ?? "", shipping: data.shipping ?? "", discount: data.discount ?? "", items });
       if (!parsed.success) throw new McpToolError(`Données invalides : ${parsed.error.issues.map((issue) => `${issue.path.join(".") || "entrée"} — ${issue.message}`).join(" ; ")}`);
       const p = parsed.data;

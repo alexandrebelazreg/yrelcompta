@@ -1,16 +1,16 @@
 /** Ce que le connecteur permet aujourd'hui, affiché à l'identique sur le consentement et dans les paramètres. */
 export const connectorPermissions = [
-  "Lire vos matières, catégories, produits, fournisseurs, charges récurrentes et votre rentabilité",
-  "Lire vos ventes, encaissements, factures et avoirs (nom des acheteurs, sans adresse ni e-mail)",
-  "Créer et modifier vos matières et catégories de matières",
-  "Créer des fournisseurs, des produits avec leur recette et des charges récurrentes",
-  "Préparer des ventes et des dépenses en brouillon, que vous vérifiez et validez vous-même",
+  "Lire toutes vos données : matières, produits, fournisseurs, charges, dépenses, ventes, factures et rentabilité (acheteurs cités par leur nom, sans coordonnées)",
+  "Créer et modifier vos matières, catégories, produits, fournisseurs, charges récurrentes et paramètres de coût",
+  "Préparer, modifier ou supprimer des ventes et des dépenses en brouillon",
+  "Avec votre confirmation explicite : valider une vente ou une dépense, enregistrer un encaissement, un paiement ou un remboursement",
+  "Avec votre confirmation explicite : émettre une facture ou un avoir, annuler une vente ou une dépense, archiver un élément",
 ];
 
 export const connectorLimits = [
-  "Valider une vente ou une dépense, enregistrer un encaissement, un paiement ou un remboursement",
-  "Émettre une facture ou un avoir, annuler une vente",
-  "Supprimer quoi que ce soit, ou consulter vos justificatifs",
+  "Agir sans votre accord : Claude vous demande l’autorisation avant chaque modification",
+  "Modifier une vente, une dépense ou une facture déjà validée : la correction passe toujours par un remboursement, un avoir ou une annulation tracés",
+  "Consulter vos justificatifs, vos paramètres légaux de facturation ou votre profil fiscal",
 ];
 
 const TRUSTED_HOSTS = ["claude.ai", "claude.com", "anthropic.com"];

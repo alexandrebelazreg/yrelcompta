@@ -34,7 +34,7 @@ describe("contrat applicatif de facturation", () => {
     expect(queries).toContain("BILLING_DATA_LOAD_FAILED");
   });
   it("exige et explique le SIREN du client professionnel sans le rendre obligatoire pour le particulier", () => {
-    expect(actions).toContain('value.buyerKind === "professional"');
+    expect(read("src/lib/invoicing/validation.ts")).toContain('value.buyerKind === "professional"');
     expect(actions).toContain("PROFESSIONAL_BUYER_SIREN_REQUIRED");
     expect(newInvoice).toContain("SIREN client — obligatoire pour un professionnel");
     expect(newInvoice).not.toMatch(/name="buyerSiren"[^>]*required/);

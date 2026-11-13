@@ -4,13 +4,14 @@ import { publicOrigin, wwwAuthenticate } from "@/lib/mcp/metadata";
 import { handleMcpMessage } from "@/lib/mcp/protocol";
 import { readOnlyTools } from "@/lib/mcp/tools";
 import { salesReadTools, salesWriteTools } from "@/lib/mcp/sales-tools";
+import { managementTools } from "@/lib/mcp/management-tools";
 import { writeTools } from "@/lib/mcp/write-tools";
 import { runWithSupabaseClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 const MAX_BODY_BYTES = 1_000_000;
-const tools = [...readOnlyTools, ...salesReadTools, ...writeTools, ...salesWriteTools];
+const tools = [...readOnlyTools, ...salesReadTools, ...writeTools, ...salesWriteTools, ...managementTools];
 
 // Transport « Streamable HTTP » sans état : chaque POST reçoit une réponse JSON.
 // L'authentification repose uniquement sur le jeton Bearer (aucun cookie), ce qui exclut le CSRF.
