@@ -6,20 +6,25 @@ les requêtes passent par RLS et les RPC existantes. Aucune clé `service_role` 
 
 ## Outils
 
-| Lecture | Écriture (accord demandé par Claude) |
+| Type | Outils |
 | --- | --- |
-| `list_material_categories`, `list_materials`, `list_products`, `list_suppliers`, `list_recurring_charges`, `get_profitability`, `list_sales`, `get_sale`, `get_sales_summary`, `list_invoices`, `get_invoice` | `create_supplier`, `create_material`, `update_material`, `create_product`, `create_recurring_charge`, `create_expense_draft`, `create_sale_draft` |
+| Lecture | `list_material_categories`, `list_materials`, `list_products`, `list_suppliers`, `list_recurring_charges`, `get_profitability`, `list_sales`, `get_sale`, `get_sales_summary`, `list_invoices`, `get_invoice`, `list_expenses`, `get_expense`, `get_costing_settings` |
+| Écriture (accord demandé par Claude) | `create_supplier`, `update_supplier`, `create_material`, `update_material`, `update_material_category`, `create_product`, `update_product`, `create_recurring_charge`, `update_recurring_charge`, `generate_expense_from_recurring_charge`, `create_expense_draft`, `update_expense_draft`, `create_sale_draft`, `update_sale_draft`, `update_costing_settings` |
+| Définitif (accord + `confirmation: true`) | `validate_sale`, `record_sale_payment`, `record_sale_refund`, `cancel_sale`, `delete_sale_draft`, `issue_invoice`, `issue_credit_note`, `validate_expense`, `record_expense_payment`, `record_expense_refund`, `cancel_expense`, `delete_expense_draft`, `archive_supplier`, `archive_recurring_charge`, `archive_product`, `archive_material` |
 
-Règles des écritures :
-- elles passent uniquement par les RPC déjà utilisées par l’application, après la **même validation Zod** que les formulaires ;
-- les ventes et les dépenses sont créées **en brouillon** : l’utilisatrice les vérifie et les valide dans l’app ;
-- les factures et avoirs sont **en lecture seule** : leur émission (numérotation définitive) reste dans l’app, comme les encaissements ;
-- les acheteurs ne sont exposés que par leur nom : ni adresse, ni e-mail, ni SIREN, ni numéro de TVA ;
-- aucune validation, aucun paiement, encaissement, remboursement, annulation ni suppression ; pas d’accès aux justificatifs ;
-- garde-fous contre les doublons : fournisseur de même nom réutilisé, matière ou produit existant refusé, dépense
-  identique (date, montant, description) refusée sans confirmation explicite (`allow_duplicate`) ;
-- chaque écriture est tracée : la colonne `audit_logs.oauth_client_id` reçoit le `client_id` du jeton (migration
-  `20261112120000_audit_oauth_client.sql`, sans changement de RPC).
+Règles :
+- toute écriture passe par les RPC déjà utilisées par l’application, après la **même validation Zod** que les formulaires
+  (schémas de facturation déplacés dans `src/lib/invoicing/validation.ts` pour être partagés) ;
+- les actions définitives sont annotées `destructiveHint` et exigent le champ `confirmation: true`, que Claude ne doit
+  renseigner qu’après une confirmation explicite de l’utilisatrice pour cette action précise ;
+- une vente, une dépense ou une facture validée reste inaltérable : la correction passe par un remboursement, un avoir
+  ou une annulation tracés, conformément aux règles du projet ;
+- hors de portée : paramètres légaux de facturation, profil fiscal, justificatifs (fichiers) et connexion Shopify ;
+- les acheteurs ne sont **lus** que par leur nom ; leurs coordonnées ne sont transmises que lorsque l’utilisatrice les
+  fournit pour émettre une facture ;
+- garde-fous contre les doublons à la création (fournisseur réutilisé, matière ou produit existant refusé, dépense
+  identique refusée sans `allow_duplicate`) ;
+- chaque écriture est tracée : `audit_logs.oauth_client_id` reçoit le `client_id` du jeton.
 
 ## Architecture
 

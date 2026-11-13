@@ -3,15 +3,18 @@ import { z } from "zod";
 /** Versions du protocole MCP acceptées ; la plus récente est proposée par défaut. */
 export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
 export const SERVER_INFO = { name: "yrelcompta", title: "YrelCompta", version: "1.0.0" };
-export const SERVER_INSTRUCTIONS = "YrelCompta est l’outil de gestion d’une micro-entreprise française de bijoux. Les montants sont en euros TTC. Les estimations de coût, de marge et de rentabilité sont internes : ce ne sont ni des résultats comptables ni des montants fiscaux dus. Avant toute création ou modification, récapitulez ce qui va être enregistré et attendez l’accord de l’utilisatrice. Les ventes et les dépenses sont créées en brouillon : l’utilisatrice les vérifie et les valide elle-même dans YrelCompta. Les encaissements, factures et avoirs se gèrent uniquement dans l’application. Consultez d’abord les données existantes (matières, fournisseurs, catégories) pour éviter les doublons.";
+export const SERVER_INSTRUCTIONS = "YrelCompta est l’outil de gestion d’une micro-entreprise française de bijoux. Les montants sont en euros TTC. Les estimations de coût, de marge et de rentabilité sont internes : ce ne sont ni des résultats comptables ni des montants fiscaux dus. Avant toute création ou modification, récapitulez ce qui va être enregistré et attendez l’accord de l’utilisatrice. Les actions définitives (valider une vente ou une dépense, enregistrer un encaissement, un paiement ou un remboursement, émettre une facture ou un avoir, annuler, archiver, supprimer) exigent le champ confirmation : ne le renseignez qu’après une confirmation explicite de l’utilisatrice pour cette action précise, jamais de votre propre initiative, et une action à la fois. Une vente ou une dépense validée ne se modifie plus : elle se corrige par un remboursement, un avoir ou une annulation. Consultez d’abord les données existantes pour retrouver les bons éléments et éviter les doublons.";
 
 /** Erreur destinée à l'utilisatrice : son message est renvoyé tel quel à Claude. */
 export class McpToolError extends Error {}
 
 export interface McpTool<Context> {
   name: string;
-  /** « write » crée ou modifie des données : Claude demande alors l'accord de l'utilisatrice. */
-  kind?: "read" | "write";
+  /**
+   * « write » crée ou modifie des données ; « destructive » est définitif (validation, encaissement, facture,
+   * annulation, archivage, suppression). Claude demande l'accord de l'utilisatrice dans les deux cas.
+   */
+  kind?: "read" | "write" | "destructive";
   title: string;
   description: string;
   input: z.ZodObject;
@@ -37,7 +40,7 @@ export function toolDefinitions<Context>(tools: McpTool<Context>[]) {
     // Schéma de ce que Claude envoie (avant les transformations Zod, qui ne sont pas représentables en JSON Schema).
     const inputSchema = z.toJSONSchema(tool.input, { io: "input", unrepresentable: "any" }) as Record<string, unknown>;
     delete inputSchema.$schema;
-    return { name: tool.name, title: tool.title, description: tool.description, inputSchema, annotations: { title: tool.title, readOnlyHint: tool.kind !== "write", destructiveHint: false, idempotentHint: tool.kind !== "write", openWorldHint: false } };
+    return { name: tool.name, title: tool.title, description: tool.description, inputSchema, annotations: { title: tool.title, readOnlyHint: !tool.kind || tool.kind === "read", destructiveHint: tool.kind === "destructive", idempotentHint: !tool.kind || tool.kind === "read", openWorldHint: false } };
   });
 }
 

@@ -4,10 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getAuthenticatedContext } from "@/lib/auth/context";
-import { parseFrenchMoneyToCents } from "@/lib/sales/calculations";
 import { createClient } from "@/lib/supabase/server";
+import { creditSchema, invoiceSchema, nullableText, professionalBuyerSirenMessage } from "./validation";
 
-const nullableText = (max: number) => z.string().trim().max(max);
 const settingsSchema = z.object({
   issuerLegalName: z.string().trim().min(2).max(200), issuerTradeName: nullableText(200),
   issuerSiret: z.string().regex(/^\d{14}$/), issuerAddress: z.string().trim().min(5).max(1000),
@@ -16,26 +15,6 @@ const settingsSchema = z.object({
   defaultEarlyPaymentDiscountTerms: nullableText(1000), defaultLatePenaltyTerms: nullableText(1000),
   defaultRecoveryIndemnityText: nullableText(1000),
 });
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const professionalBuyerSirenMessage = "Le SIREN à 9 chiffres est obligatoire pour un client professionnel dans la facturation V1.";
-const invoiceSchema = z.object({
-  saleId: z.string().uuid(), supplyOn: dateSchema, operationCategory: z.enum(["goods", "services", "mixed"]),
-  buyerKind: z.enum(["individual", "professional"]), buyerName: z.string().trim().min(1).max(200),
-  buyerAddress: nullableText(1000), buyerAddressOmitted: z.boolean(), buyerBillingAddress: nullableText(1000),
-  buyerDeliveryAddress: nullableText(1000), buyerEmail: nullableText(254), buyerSiren: z.string().trim().refine((value) => value === "" || /^\d{9}$/.test(value)),
-  buyerVatNumber: nullableText(50), purchaseOrderReference: nullableText(200), paymentDueOn: dateSchema,
-}).superRefine((value, context) => {
-  if (value.buyerKind === "professional" && !/^\d{9}$/.test(value.buyerSiren)) {
-    context.addIssue({ code: "custom", path: ["buyerSiren"], message: professionalBuyerSirenMessage });
-  }
-});
-const creditSchema = z.object({
-  invoiceId: z.string().uuid(), amount: z.string().min(1).transform((value, context) => {
-    try { return parseFrenchMoneyToCents(value); } catch { context.addIssue({ code: "custom", message: "Montant invalide" }); return z.NEVER; }
-  }),
-  reason: z.string().trim().min(2).max(500), linkedRefundId: z.string().trim().refine((value) => value === "" || z.uuid().safeParse(value).success),
-});
-
 async function mutationContext() {
   const [{ context }, supabase] = await Promise.all([getAuthenticatedContext(), createClient()]);
   return context.business && supabase ? { businessId: context.business.id, supabase } : null;
