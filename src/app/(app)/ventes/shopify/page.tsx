@@ -27,6 +27,8 @@ const attentionLabels: Record<string, { label: string; help: string }> = {
   tax_present: { label: "TVA facturée", help: "La commande contient de la TVA, que YrelCompta ne gère pas encore : vérifiez la vente à la main." },
   currency: { label: "Devise autre que l’euro", help: "Seules les commandes en euros sont importées." },
   no_lines: { label: "Aucun article", help: "La commande ne contient aucun article importable." },
+  matched_existing_sale: { label: "Rattachée à une vente existante", help: "Une vente portant ce numéro de commande existait déjà : la commande lui a été rattachée, sans en créer une nouvelle." },
+  possible_duplicate: { label: "Doublon possible", help: "Plusieurs ventes mentionnent ce numéro de commande : aucune vente n’a été créée. Supprimez ou annulez les doublons, puis relancez." },
   refund_to_record: { label: "Remboursement à enregistrer", help: "Shopify a remboursé cette commande : enregistrez le remboursement sur la vente, puis marquez ce point comme traité." },
   order_cancelled: { label: "Annulée sur Shopify", help: "La vente est déjà validée : remboursez puis annulez-la dans YrelCompta si besoin, puis marquez ce point comme traité." },
 };
@@ -69,7 +71,9 @@ export default async function ShopifyOrdersPage({ searchParams }: { searchParams
   ]);
   const lastSync = sync?.lastSyncAt ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" }).format(new Date(sync.lastSyncAt)) : null;
   const toLink = productsToLink(imports);
-  const toReview = imports.filter((entry) => entry.attention.some((flag) => flag !== "unlinked_products") || entry.status === "needs_review");
+  // « Rattachée à une vente existante » est une information, pas un point à traiter.
+  const informational = ["unlinked_products", "matched_existing_sale"];
+  const toReview = imports.filter((entry) => entry.attention.some((flag) => !informational.includes(flag)) || (entry.status === "needs_review" && !entry.attention.includes("matched_existing_sale")));
   const message = query.message && messages[query.message] ? messages[query.message](query) : null;
 
   return <>
@@ -115,7 +119,7 @@ export default async function ShopifyOrdersPage({ searchParams }: { searchParams
       <h2 id="review-heading">Points à traiter ({toReview.length})</h2>
       <ul className="shopify-review-list">{toReview.map((entry) => <li key={entry.id}>
         <div><strong>{entry.order_name}</strong> · {formatFrenchDate(entry.ordered_on)} · {formatEuroCents(entry.total_cents)}{entry.sale_id && <> · <Link href={`/ventes/${entry.sale_id}`}>voir la vente {entry.sales?.reference ?? ""}</Link></>}</div>
-        <ul>{entry.attention.filter((flag) => flag !== "unlinked_products").map((flag) => <li key={flag}>
+        <ul>{entry.attention.filter((flag) => !informational.includes(flag)).map((flag) => <li key={flag}>
           <span className="management-status management-status-overdue">{attentionLabels[flag]?.label ?? flag}</span> {attentionLabels[flag]?.help}
           {(flag === "refund_to_record" || flag === "order_cancelled") && <form action={dismissShopifyAttentionAction} className="table-inline-form"><input type="hidden" name="importId" value={entry.id}/><input type="hidden" name="flag" value={flag}/><SubmitButton>Marquer comme traité</SubmitButton></form>}
         </li>)}</ul>

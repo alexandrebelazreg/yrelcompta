@@ -216,9 +216,14 @@ export const salesWriteTools: McpTool<McpToolContext>[] = [
       shipping: z.union([z.string().trim().max(20), z.number().nonnegative()]).transform(String).optional().describe("Frais de port facturés, en euros."),
       discount: z.union([z.string().trim().max(20), z.number().nonnegative()]).transform(String).optional().describe("Remise totale, en euros."),
       notes: z.string().trim().max(2000).optional(),
+      manual_shopify_sale: z.literal(true).optional().describe("Uniquement pour une vente Shopify absente de l’import automatique, après confirmation explicite de l’utilisatrice."),
     }),
     run: async (input, { supabase, businessId, origin }) => {
-      const data = input as { ordered_on?: string; channel: SaleChannel; customer_name?: string; items: Array<{ product?: string; description?: string; quantity: number; unit_price?: string }>; shipping?: string; discount?: string; notes?: string };
+      const data = input as { ordered_on?: string; channel: SaleChannel; customer_name?: string; items: Array<{ product?: string; description?: string; quantity: number; unit_price?: string }>; shipping?: string; discount?: string; notes?: string; manual_shopify_sale?: true };
+      // Les commandes Shopify sont importées automatiquement : une saisie manuelle créerait un doublon.
+      if (data.channel === "shopify" && !data.manual_shopify_sale) {
+        throw new McpToolError(`Les commandes Shopify sont importées automatiquement dans YrelCompta (Ventes → Commandes Shopify : ${origin}/ventes/shopify). N’en créez pas à la main : vérifiez d’abord que la commande n’y figure pas. Si elle manque vraiment, demandez confirmation à l’utilisatrice puis indiquez manual_shopify_sale, avec le numéro de commande dans la note (ex. « Commande Shopify #1007 ») pour éviter tout doublon.`);
+      }
       const items = await resolveSaleItems(businessId, data.items);
       const parsed = saleFormSchema.safeParse({ orderedOn: data.ordered_on ?? getTodayInParis(), channel: data.channel, customerName: data.customer_name ?? "", notes: data.notes ?? "", shipping: data.shipping ?? "", discount: data.discount ?? "", items });
       if (!parsed.success) throw new McpToolError(`Données invalides : ${parsed.error.issues.map((issue) => `${issue.path.join(".") || "entrée"} — ${issue.message}`).join(" ; ")}`);

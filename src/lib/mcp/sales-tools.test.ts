@@ -65,6 +65,16 @@ describe("ventes et factures dans le connecteur", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it("refuse une vente Shopify saisie à la main, sauf confirmation explicite", async () => {
+    const refused = await call("create_sale_draft", { channel: "shopify", items: [{ description: "Collier", unit_price: "45" }] });
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toContain("importées automatiquement");
+    expect(rpc).not.toHaveBeenCalled();
+    const accepted = await call("create_sale_draft", { channel: "shopify", items: [{ description: "Collier", unit_price: "45" }], notes: "Commande Shopify #1010", manual_shopify_sale: true });
+    expect(accepted.isError).toBe(false);
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
   it("refuse une remise supérieure au total", async () => {
     const result = await call("create_sale_draft", { channel: "direct", items: [{ description: "Bague", unit_price: "10" }], discount: "50" });
     expect(result.isError).toBe(true);
