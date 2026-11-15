@@ -52,6 +52,23 @@ Le Route Handler Node rejette un `Content-Length` supérieur à 5 Mio avant la l
 
 ## Import des commandes en ventes
 
+### Doublons et rattachement automatique des produits
+
+- **Pas de doublon avec une vente existante** : avant de créer une vente, l’import cherche une vente non annulée,
+  liée à aucun autre import, qui porte déjà le numéro de commande (note « Commande Shopify #1007 » ou référence
+  d’encaissement « #1007 », sans confondre #1007 et #10070). S’il en trouve une, la commande lui est **rattachée sans
+  la modifier ni la supprimer** (signalement informatif « Rattachée à une vente existante ») ; s’il en trouve
+  plusieurs, rien n’est créé et un « Doublon possible » est signalé. Cas réel : des ventes saisies par Claude avant
+  l’import automatique.
+- **Claude** refuse de créer une vente du canal Shopify sans `manual_shopify_sale: true`, donné seulement après
+  confirmation explicite ; ses instructions rappellent que les commandes Shopify sont importées automatiquement.
+- **Rattachement automatique** : lien mémorisé, SKU, puis nom de produit identique au titre Shopify (complet, sinon
+  sans la variante « — Doré »), uniquement si un seul produit actif correspond. Un déclencheur différé relance les
+  brouillons en attente dès qu’un produit est créé ou modifié (nom, SKU, activation), à la fin de la transaction pour
+  que la recette soit enregistrée avant la validation ; un échec n’empêche jamais l’enregistrement du produit.
+- La migration `20261115120000_shopify_dedup_autolink.sql` rattache les commandes déjà reçues sans vente à la vente
+  existante qui porte leur numéro.
+
 ### Synchronisation par l’API (sans webhooks)
 
 Sur l’offre **Basic**, Shopify peut refuser les webhooks de commandes à une app marchande (pas d’accès aux
