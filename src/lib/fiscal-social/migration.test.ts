@@ -7,7 +7,6 @@ const migrationName = "20260808120000_fiscal_social_rules.sql";
 const migration = readFileSync(join(root, "supabase/migrations", migrationName), "utf8");
 const sql = migration.replace(/\s+/g, " ");
 const declarationPage = readFileSync(join(root, "src/app/(app)/registres/declarations/page.tsx"), "utf8");
-const dashboardPage = readFileSync(join(root, "src/app/(app)/tableau-de-bord/page.tsx"), "utf8");
 
 function functionSql(name: string, nextMarker: string): string {
   const start = migration.indexOf(`${name}(`);
@@ -114,12 +113,6 @@ describe("migration des règles fiscales et sociales", () => {
     expect(revise).toContain("fiscal_snapshot.evaluation_status = 'evaluated'");
     expect(revise).not.toContain("current_date");
     expect(revise).not.toMatch(/update public\.turnover_declarations/i);
-  });
-
-  it("affiche la réserve distinctement sans la qualifier de bénéfice ou montant dû", () => {
-    expect(dashboardPage).toContain("Réserve fiscale et sociale estimée");
-    expect(dashboardPage).toContain("Ce n’est ni un bénéfice net, ni le montant réellement dû");
-    expect(dashboardPage).toContain("Gérer les paramètres fiscaux");
   });
 
   it("ne contient aucune commande Supabase ni service_role", () => {

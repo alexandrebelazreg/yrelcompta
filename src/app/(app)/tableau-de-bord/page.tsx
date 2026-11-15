@@ -8,14 +8,11 @@ import { calculateDashboardMetrics, dailyCollectedCents, fixedCostCoveragePercen
 import { fixedCostCoverageMessage } from "@/lib/dashboard/presentation";
 import { getDashboardData, getRecurringDraftReviewCount } from "@/lib/dashboard/queries";
 import { formatEuroCents } from "@/lib/sales/calculations";
-import { saleChannelLabels } from "@/lib/sales/labels";
 import { getPendingDeclarationPeriods } from "@/lib/registers/queries";
 import { getTodayDraftCounts } from "@/lib/today/queries";
 import { buildTodayTasks, formatTodayLabel, type TodayTask } from "@/lib/today/tasks";
 import { getTodayInParis } from "@/lib/utils/date";
-import { formatFrenchDate } from "@/lib/utils/format";
-import type { BreakEvenUnavailableReason, DashboardMetrics, DashboardMonth, DashboardRecentSale } from "@/types/dashboard";
-import { fiscalReserveUnavailableMessages, formatBasisPoints } from "@/lib/fiscal-social/presentation";
+import type { BreakEvenUnavailableReason, DashboardMetrics, DashboardMonth } from "@/types/dashboard";
 
 interface DashboardPageProps {
   searchParams: Promise<{ mois?: string | string[] }>;
@@ -99,7 +96,7 @@ function TaskList({ tasks }: { tasks: TodayTask[] | null }) {
   </section>;
 }
 
-function MonthSummary({ metrics, recentSales }: { metrics: DashboardMetrics; recentSales: DashboardRecentSale[] }) {
+function MonthSummary({ metrics }: { metrics: DashboardMetrics }) {
   const rows = [
     { label: "Commissions", hint: "Suivies à part, jamais en dépense", value: metrics.cash.platformFeesCents },
     { label: "Dépenses professionnelles nettes", hint: "Part pro payée moins remboursements", value: metrics.cash.netExpensesCents },
@@ -110,12 +107,6 @@ function MonthSummary({ metrics, recentSales }: { metrics: DashboardMetrics; rec
     <dl className="today-panel today-summary-list">
       {rows.map((row) => <div key={row.label}><dt><span>{row.label}</span><small>{row.hint}</small></dt><dd>{formatEuroCents(row.value)}</dd></div>)}
     </dl>
-    <div className="today-section-title"><h2>Dernières ventes</h2><Link href="/ventes">Tout voir</Link></div>
-    {recentSales.length === 0
-      ? <p className="today-panel today-empty">Vos dernières ventes apparaîtront ici après leur création.</p>
-      : <ul className="today-panel today-sales">
-          {recentSales.map((sale) => <li key={sale.id}><Link href={`/ventes/${sale.id}`}><span><strong>{sale.reference}</strong><small>{formatFrenchDate(sale.orderedOn)} · {saleChannelLabels[sale.channel]}</small></span><span className="today-amount">{formatEuroCents(sale.totalCents)}</span></Link></li>)}
-        </ul>}
   </aside>;
 }
 
@@ -128,7 +119,7 @@ function MonthAnalysis({ metrics, monthKey }: { metrics: DashboardMetrics; month
 
   return <section className="today-analysis" aria-labelledby="analysis-heading">
     <div className="today-analysis-header">
-      <div><h2 id="analysis-heading">Analyse du mois</h2><p>Rentabilité, réserve estimée et seuil, pour le mois choisi.</p></div>
+      <div><h2 id="analysis-heading">Analyse du mois</h2><p>Rentabilité et seuil, pour le mois choisi.</p></div>
       <MonthSelector monthKey={monthKey} />
     </div>
     <section className="dashboard-section" aria-labelledby="profitability-heading">
@@ -143,20 +134,6 @@ function MonthAnalysis({ metrics, monthKey }: { metrics: DashboardMetrics; month
         <strong>{metrics.profitability.completeCount} ventes avec coût complet sur {metrics.profitability.saleCount} ventes validées</strong>
         <span>{metrics.profitability.incompleteCount} incomplètes · {metrics.profitability.historicalCount} historiques non évaluées</span>
       </div>
-    </section>
-
-    <section className="dashboard-section" aria-labelledby="fiscal-reserve-heading">
-      <DashboardSectionHeading id="fiscal-reserve-heading" title="Réserve fiscale et sociale estimée" help="Estimation interne de trésorerie uniquement. Hors CFE, TVA et impôt sur le revenu au barème progressif. YrelCompta ne transmet aucune déclaration." action={<Link className="secondary-link" href="/parametres/fiscalite">Gérer les paramètres fiscaux</Link>} />
-      {metrics.fiscalReserve.calculation ? <>
-        <div className="metric-grid">
-          <MetricCard label="CA encaissé utilisé comme base" value={formatEuroCents(metrics.fiscalReserve.calculation.turnoverCents)} help="Encaissements bruts du mois, sans remboursement client." />
-          <MetricCard label="Cotisations sociales estimées" value={formatEuroCents(metrics.fiscalReserve.calculation.estimatedSocialContributionsCents)} help={<>Taux effectif {formatBasisPoints(metrics.fiscalReserve.calculation.socialRateBasisPoints)}{metrics.fiscalReserve.calculation.acreApplied ? " avec ACRE" : ""}.</>} />
-          <MetricCard label="CFP estimée" value={formatEuroCents(metrics.fiscalReserve.calculation.estimatedCfpCents)} help={<>Taux {formatBasisPoints(metrics.fiscalReserve.calculation.cfpRateBasisPoints)}, jamais réduit par l’ACRE.</>} />
-          {metrics.fiscalReserve.calculation.versementLiberatoireBasisPoints > 0 && <MetricCard label="Versement libératoire estimé" value={formatEuroCents(metrics.fiscalReserve.calculation.estimatedIncomeTaxCents)} help={<>Taux {formatBasisPoints(metrics.fiscalReserve.calculation.versementLiberatoireBasisPoints)}.</>} />}
-          <MetricCard label="Réserve totale estimée" value={formatEuroCents(metrics.fiscalReserve.calculation.estimatedTotalReserveCents)} help="Cotisations sociales, CFP et versement libératoire activé." />
-          <MetricCard label="Flux net suivi après réserve estimée" value={moneyOrUnavailable(metrics.fiscalReserve.trackedCashAfterReserveCents)} help="Flux net suivi actuel moins cette réserve. Ce n’est ni un bénéfice net, ni le montant réellement dû." />
-        </div>
-      </> : <div className="card fiscal-reserve-unavailable"><strong>Estimation indisponible</strong><p>{metrics.fiscalReserve.unavailableReason ? fiscalReserveUnavailableMessages[metrics.fiscalReserve.unavailableReason] : "Données indisponibles."}</p></div>}
     </section>
 
     <section className="dashboard-section" aria-labelledby="break-even-heading">
@@ -214,7 +191,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     <MonthHero metrics={dashboard.metrics} month={month} days={dailyCollectedCents(dashboard.source.payments, month)} coverage={fixedCostCoveragePercent(dashboard.metrics)} />
     <div className="today-columns">
       <TaskList tasks={todayTasks} />
-      <MonthSummary metrics={dashboard.metrics} recentSales={dashboard.source.recentSales} />
+      <MonthSummary metrics={dashboard.metrics} />
     </div>
     <MonthAnalysis metrics={dashboard.metrics} monthKey={month.key} />
   </>;
