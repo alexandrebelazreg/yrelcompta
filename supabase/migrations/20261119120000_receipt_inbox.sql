@@ -22,16 +22,18 @@ begin
 end $$;
 revoke all on function public.prevent_document_mutation() from public;
 
+-- Dans les règles ci-dessous, « name » est qualifié (objects.name) : businesses a sa propre colonne
+-- name, qui serait sinon prise à la place du chemin du fichier.
 -- Stockage : dépôt dans la boîte de réception réservé aux gestionnaires de l'entreprise.
 create policy receipt_inbox_storage_insert on storage.objects for insert to authenticated with check (
-  bucket_id='expense-documents' and public.is_valid_inbox_document_path(name)
-  and exists(select 1 from public.businesses b where b.id::text=(storage.foldername(name))[1] and public.can_manage_business(b.id))
+  bucket_id='expense-documents' and public.is_valid_inbox_document_path(objects.name)
+  and exists(select 1 from public.businesses b where b.id::text=(storage.foldername(objects.name))[1] and public.can_manage_business(b.id))
 );
 -- Lecture de la boîte de réception par les membres de l'entreprise : nécessaire aussi pour
 -- l'envoi (Storage relit l'objet créé) et pour effacer un fichier dont les métadonnées sont retirées.
 create policy receipt_inbox_storage_select on storage.objects for select to authenticated using (
-  bucket_id='expense-documents' and public.is_valid_inbox_document_path(name)
-  and exists(select 1 from public.businesses b where b.id::text=(storage.foldername(name))[1] and public.is_business_member(b.id))
+  bucket_id='expense-documents' and public.is_valid_inbox_document_path(objects.name)
+  and exists(select 1 from public.businesses b where b.id::text=(storage.foldername(objects.name))[1] and public.is_business_member(b.id))
 );
 -- Lecture de tout document enregistré de l'entreprise, quel que soit son chemin : un document
 -- rattaché à plusieurs dépenses doit rester lisible même si la dépense de son chemin disparaît.
@@ -42,17 +44,17 @@ create policy registered_documents_storage_select on storage.objects for select 
 -- Suppression d'un fichier de la boîte de réception : seulement une fois ses métadonnées retirées
 -- (ou pour nettoyer un dépôt dont l'enregistrement a échoué).
 create policy receipt_inbox_storage_delete on storage.objects for delete to authenticated using (
-  bucket_id='expense-documents' and public.is_valid_inbox_document_path(name)
-  and exists(select 1 from public.businesses b where b.id::text=(storage.foldername(name))[1] and public.can_manage_business(b.id))
-  and not exists(select 1 from public.documents d where d.storage_bucket='expense-documents' and d.storage_path=name)
+  bucket_id='expense-documents' and public.is_valid_inbox_document_path(objects.name)
+  and exists(select 1 from public.businesses b where b.id::text=(storage.foldername(objects.name))[1] and public.can_manage_business(b.id))
+  and not exists(select 1 from public.documents d where d.storage_bucket='expense-documents' and d.storage_path=objects.name)
 );
 -- Un fichier rattaché ailleurs ne doit plus pouvoir être effacé au motif que la dépense de son
 -- chemin est un brouillon : la suppression exige désormais que ses métadonnées aient été retirées.
 drop policy expense_documents_storage_delete on storage.objects;
 create policy expense_documents_storage_delete on storage.objects for delete to authenticated using (
-  bucket_id='expense-documents' and public.is_valid_expense_document_path(name)
-  and exists(select 1 from public.expenses e where e.business_id::text=(storage.foldername(name))[1] and e.id::text=(storage.foldername(name))[2] and e.status<>'cancelled' and public.can_manage_business(e.business_id))
-  and not exists(select 1 from public.documents d where d.storage_bucket='expense-documents' and d.storage_path=name)
+  bucket_id='expense-documents' and public.is_valid_expense_document_path(objects.name)
+  and exists(select 1 from public.expenses e where e.business_id::text=(storage.foldername(objects.name))[1] and e.id::text=(storage.foldername(objects.name))[2] and e.status<>'cancelled' and public.can_manage_business(e.business_id))
+  and not exists(select 1 from public.documents d where d.storage_bucket='expense-documents' and d.storage_path=objects.name)
 );
 
 create function public.register_inbox_document(p_document_id uuid,p_business_id uuid,p_storage_path text,p_original_name text,p_mime_type text,p_size_bytes bigint) returns uuid language plpgsql security definer set search_path='' as $$

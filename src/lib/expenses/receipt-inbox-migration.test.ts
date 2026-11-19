@@ -38,16 +38,22 @@ describe("boîte de réception des justificatifs : migration", () => {
 
   it("n’autorise l’effacement d’un fichier Storage qu’une fois ses métadonnées retirées", () => {
     for (const policy of ["receipt_inbox_storage_delete", "expense_documents_storage_delete on storage.objects for delete to authenticated using"]) {
-      expect(section(`create policy ${policy}`, ");")).toContain("not exists(select 1 from public.documents d where d.storage_bucket='expense-documents' and d.storage_path=name)");
+      expect(section(`create policy ${policy}`, ");")).toContain("not exists(select 1 from public.documents d where d.storage_bucket='expense-documents' and d.storage_path=objects.name)");
     }
     expect(sql).toContain("drop policy expense_documents_storage_delete on storage.objects;");
+  });
+
+  it("désigne le chemin du fichier sans ambiguïté avec les colonnes name des tables jointes", () => {
+    const policies = sql.slice(sql.indexOf("create policy receipt_inbox_storage_insert"), sql.indexOf("create function public.register_inbox_document"));
+    expect(policies).not.toMatch(/[^.]name\)/);
+    expect(policies).toContain("storage.foldername(objects.name)");
   });
 
   it("réserve le dépôt aux gestionnaires et la lecture aux membres de l’entreprise du document", () => {
     expect(section("create policy receipt_inbox_storage_insert", ");")).toContain("public.can_manage_business(b.id)");
     expect(section("create policy registered_documents_storage_select", ");")).toContain("public.is_business_member(d.business_id)");
     // Sans lecture, Storage ne peut ni relire un dépôt ni effacer un fichier dont les métadonnées sont retirées.
-    expect(section("create policy receipt_inbox_storage_select", ");")).toContain("public.is_valid_inbox_document_path(name)");
+    expect(section("create policy receipt_inbox_storage_select", ");")).toContain("public.is_valid_inbox_document_path(objects.name)");
   });
 
   it("vérifie le chemin canonique du dépôt et n’ouvre aucun droit anonyme", () => {
