@@ -1351,3 +1351,19 @@ button.table-action-link { background: none; border: 0; cursor: pointer; font: i
 .material-picker-option[aria-selected="true"] strong { color: var(--color-brand-hover); }
 .material-picker-option[aria-disabled="true"] { cursor: not-allowed; opacity: .5; }
 .material-picker-empty { color: var(--muted); font-size: .85rem; margin: .25rem .5rem; }
+
+/* Historique d'achats des matières */
+.material-purchases { border-top: 1px solid var(--line); display: grid; gap: .75rem; margin-top: 1.25rem; padding-top: 1rem; }
+.material-purchases .section-heading { align-items: baseline; flex-wrap: wrap; gap: .25rem 1rem; }
+.material-purchases h3 { font-size: 1rem; margin: 0; }
+.material-purchase-list { display: grid; gap: .5rem; list-style: none; margin: 0; padding: 0; }
+.material-purchase { align-items: center; border: 1px solid var(--line); border-radius: .7rem; display: flex; gap: 1rem; justify-content: space-between; padding: .65rem .8rem; }
+.material-purchase.is-excluded { opacity: .65; }
+.material-purchase-main { display: grid; gap: .2rem; min-width: 0; }
+.material-purchase-main strong { font-size: .9rem; }
+.material-purchase-main > span { color: var(--muted); font-size: .8rem; overflow-wrap: anywhere; }
+.material-purchase-badges { display: flex; flex-wrap: wrap; gap: .35rem; }
+.material-purchase-badges .management-status { font-size: .72rem; }
+.material-purchase-badges .management-status:not([class*="management-status-"]) { background: var(--color-brand-soft); color: var(--color-brand-hover); }
+.material-purchase-actions { align-items: center; display: flex; flex-shrink: 0; gap: .75rem; }
+@media (max-width: 560px) { .material-purchase { align-items: flex-start; flex-direction: column; } }
