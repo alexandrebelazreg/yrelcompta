@@ -327,6 +327,7 @@ const expenseTools: McpTool<McpToolContext>[] = [
         reference_fournisseur: expense.external_reference,
         notes: expense.notes,
         motif_annulation: expense.cancellation_reason,
+        fichiers_justificatifs: expense.expense_documents.map((link) => ({ id: link.document_id, nom: link.documents?.original_name ?? null })),
         paiements: expense.expense_payments.map((payment) => ({ id: payment.id, date: payment.paid_on, montant: formatEuroCents(payment.amount_cents), moyen: expensePaymentMethodLabels[payment.method], remboursements: payment.expense_refunds.map((refund) => ({ date: refund.received_on, montant: formatEuroCents(refund.amount_cents), type: expenseRefundKindLabels[refund.kind], motif: refund.reason })) })),
       };
     },

@@ -8,6 +8,13 @@ export const SERVER_INSTRUCTIONS = "YrelCompta est l’outil de gestion d’une 
 /** Erreur destinée à l'utilisatrice : son message est renvoyé tel quel à Claude. */
 export class McpToolError extends Error {}
 
+export type McpContentBlock = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
+
+/** Résultat déjà mis en forme (texte et images), renvoyé tel quel au lieu d'être sérialisé en JSON. */
+export class McpContentResult {
+  constructor(readonly content: McpContentBlock[]) {}
+}
+
 export interface McpTool<Context> {
   name: string;
   /**
@@ -61,6 +68,7 @@ async function handleRequest<Context>(id: JsonRpcId, method: string, params: Rec
     }
     try {
       const output = await tool.run(parsed.data as Record<string, unknown>, context);
+      if (output instanceof McpContentResult) return { jsonrpc: "2.0", id, result: { content: output.content } };
       return { jsonrpc: "2.0", id, result: { content: [{ type: "text", text: JSON.stringify(output) }] } };
     } catch (error) {
       if (error instanceof McpToolError) return { jsonrpc: "2.0", id, result: { isError: true, content: [{ type: "text", text: error.message }] } };

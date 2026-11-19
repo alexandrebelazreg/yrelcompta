@@ -39,6 +39,7 @@ const messages: Record<string, string> = {
   annulee: "La dépense a été annulée.",
   document: "Le justificatif privé a été joint.",
   "document-supprime": "Le justificatif du brouillon a été supprimé.",
+  "document-retire": "Le justificatif a été retiré de ce brouillon ; il reste disponible pour ses autres dépenses ou dans la boîte de réception.",
 };
 export default async function ExpensePage({
   params,
@@ -229,7 +230,7 @@ export default async function ExpensePage({
                       />
                       <ConfirmSubmitButton
                         danger
-                        message="Retirer définitivement ce justificatif ?"
+                        message="Retirer ce justificatif de ce brouillon ?"
                       >
                         Retirer
                       </ConfirmSubmitButton>
