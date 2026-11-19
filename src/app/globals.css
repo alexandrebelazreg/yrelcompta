@@ -1321,3 +1321,33 @@ button.table-action-link { background: none; border: 0; cursor: pointer; font: i
 .receipt-upload-list li.is-error span:last-child { color: var(--color-danger); }
 .receipt-upload-list li.is-done span:last-child { color: var(--color-sage-strong); }
 .receipt-inbox-actions { align-items: center; display: flex; flex-direction: row !important; gap: 1rem; }
+
+/* Photos des matières */
+.material-thumb { align-items: center; background: var(--color-brand-soft); border: 1px solid var(--line); border-radius: .5rem; color: var(--muted); display: inline-flex; flex-shrink: 0; justify-content: center; overflow: hidden; }
+.material-thumb img { display: block; height: 100%; object-fit: cover; width: 100%; }
+.material-thumb-small { height: 2rem; width: 2rem; }
+.material-thumb-medium { height: 2.75rem; width: 2.75rem; }
+.material-name-with-thumb { align-items: center; display: inline-flex; gap: .6rem; min-width: 0; }
+.material-photo-field { align-items: center; display: flex; gap: 1rem; margin-bottom: 1rem; }
+.material-photo-preview { align-items: center; background: var(--color-brand-soft); border: 1px solid var(--line); border-radius: .8rem; color: var(--muted); display: flex; flex-shrink: 0; font-size: .75rem; height: 6rem; justify-content: center; overflow: hidden; text-align: center; width: 6rem; }
+.material-photo-preview img { height: 100%; object-fit: cover; width: 100%; }
+.material-photo-actions { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; }
+.material-photo-actions label { cursor: pointer; }
+.material-photo-actions label[aria-disabled="true"] { cursor: progress; opacity: .7; }
+.material-photo-actions .field-error { flex-basis: 100%; }
+.material-picker { position: relative; }
+.material-picker-trigger { align-items: center; cursor: pointer; display: flex; gap: .6rem; min-height: 2.75rem; text-align: left; width: 100%; }
+.material-picker-text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.material-picker-text strong, .material-picker-text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.material-picker-text span { color: var(--muted); font-size: .8rem; }
+/* Les recettes sont dans une .card, dont la règle « .card strong » agrandit les titres. */
+.material-picker .material-picker-text strong { display: block; font-size: .9rem; font-weight: 650; letter-spacing: normal; }
+.material-picker-caret { color: var(--muted); }
+.material-picker-popover { background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: .8rem; box-shadow: 0 12px 32px rgb(0 0 0 / .14); display: grid; gap: .5rem; left: 0; padding: .5rem; position: absolute; right: 0; top: calc(100% + .35rem); z-index: 30; }
+.material-picker-list { display: grid; gap: .15rem; grid-template-columns: minmax(0, 1fr); list-style: none; margin: 0; max-height: 20rem; overflow-x: hidden; overflow-y: auto; padding: 0; }
+.material-picker-option { align-items: center; border-radius: .6rem; cursor: pointer; display: flex; gap: .7rem; min-width: 0; padding: .4rem .5rem; }
+@media (min-width: 640px) { .material-picker-popover { min-width: 22rem; } }
+.material-picker-option.is-active { background: var(--color-brand-soft); }
+.material-picker-option[aria-selected="true"] strong { color: var(--color-brand-hover); }
+.material-picker-option[aria-disabled="true"] { cursor: not-allowed; opacity: .5; }
+.material-picker-empty { color: var(--muted); font-size: .85rem; margin: .25rem .5rem; }
