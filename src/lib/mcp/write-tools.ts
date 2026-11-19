@@ -45,13 +45,23 @@ function findSupplier(suppliers: Supplier[], name: string): Supplier | undefined
   return suppliers.find((supplier) => supplier.is_active && lower(supplier.name) === lower(name));
 }
 
-function findMaterial(materials: Material[], key: string): Material {
+/**
+ * Retrouve une matière par identifiant, référence ou nom exact. Les matières archivées ne sont
+ * acceptées que si `includeArchived` (modification) ; à égalité, une matière active l'emporte.
+ */
+function findMaterial(materials: Material[], key: string, includeArchived = false): Material {
   const needle = lower(key);
-  const matches = materials.filter((material) => material.is_active && (material.id === key || lower(material.name) === needle || (material.internal_reference && lower(material.internal_reference) === needle)));
+  const candidates = materials.filter((material) => (includeArchived || material.is_active) && (material.id === key || lower(material.name) === needle || (material.internal_reference && lower(material.internal_reference) === needle)));
+  const matches = candidates.length > 1 && includeArchived ? candidates.filter((material) => material.is_active) : candidates;
   if (matches.length === 1) return matches[0];
-  if (matches.length > 1) throw new McpToolError(`Plusieurs matières correspondent à « ${key} » : précisez l’identifiant ou la référence.`);
-  throw new McpToolError(`Aucune matière active ne correspond à « ${key} ». Consultez list_materials ou créez-la avec create_material.`);
+  if (candidates.length > 1) throw new McpToolError(`Plusieurs matières correspondent à « ${key} » : précisez l’identifiant ou la référence.`);
+  throw new McpToolError(includeArchived
+    ? `Aucune matière ne correspond à « ${key} ». Consultez list_materials (include_archived) ou créez-la avec create_material.`
+    : `Aucune matière active ne correspond à « ${key} ». Consultez list_materials ou créez-la avec create_material.`);
 }
+
+/** Numéro de commande ou de facture comparé sans tenir compte de la casse ni des espaces. */
+const normalizeExternalReference = (value: string) => value.replace(/\s+/g, "").toLocaleLowerCase("fr");
 
 /** Choix ou création d'une catégorie de matière et pré-remplissage de la référence (ex. CP-004). */
 async function resolveMaterialCategory(businessId: string, categoryName: string | undefined, prefix: string | undefined) {
@@ -130,12 +140,12 @@ export const writeTools: McpTool<McpToolContext>[] = [
     name: "update_material",
     kind: "write",
     title: "Modifier une matière",
-    description: "Modifie une matière existante (seuls les champs fournis changent). L’unité d’une matière déjà utilisée dans une recette ne peut plus changer.",
-    input: z.object({ material: z.string().trim().min(1).max(160).describe("Identifiant, référence ou nom exact de la matière."), ...Object.fromEntries(Object.entries(materialFields).map(([key, schema]) => [key, schema.optional()])), active: z.boolean().optional().describe("Faux pour archiver la matière.") }),
+    description: "Modifie une matière existante, active ou archivée (seuls les champs fournis changent ; une matière archivée le reste sauf si active=true). L’unité d’une matière déjà utilisée dans une recette ne peut plus changer.",
+    input: z.object({ material: z.string().trim().min(1).max(160).describe("Identifiant, référence ou nom exact de la matière (active ou archivée)."), ...Object.fromEntries(Object.entries(materialFields).map(([key, schema]) => [key, schema.optional()])), active: z.boolean().optional().describe("Faux pour archiver la matière, vrai pour la réactiver.") }),
     run: async (input, { supabase, businessId }) => {
       const data = input as Partial<z.infer<z.ZodObject<typeof materialFields>>> & { material: string; active?: boolean };
       const [materials, suppliers] = await Promise.all([listMaterials(businessId), listSuppliers(businessId)]);
-      const current = findMaterial(materials, data.material);
+      const current = findMaterial(materials, data.material, true);
       const category = data.category === undefined
         ? { categoryId: current.category_id ?? "", newCategoryName: "", newCategoryPrefix: "" }
         : await resolveMaterialCategory(businessId, data.category, data.category_prefix);
@@ -250,7 +260,7 @@ export const writeTools: McpTool<McpToolContext>[] = [
       external_reference: z.string().trim().max(200).optional().describe("Numéro de facture ou de commande du fournisseur."),
       subcategory: z.string().trim().max(120).optional(),
       notes: z.string().trim().max(2000).optional(),
-      allow_duplicate: z.boolean().default(false).describe("Vrai seulement si l’utilisatrice confirme vouloir une deuxième dépense identique."),
+      allow_duplicate: z.boolean().default(false).describe("Vrai seulement si l’utilisatrice confirme vouloir une deuxième dépense identique, ou une autre dépense avec le même numéro de commande chez le même fournisseur (commande saisie en plusieurs dépenses)."),
     }),
     run: async (input, { supabase, businessId, origin }) => {
       const data = input as { description: string; purchased_on: string; total_amount: string; category: string; nature: string; cost_behavior: string; professional_share_percent: number; supplier?: string; due_on?: string; external_reference?: string; subcategory?: string; notes?: string; allow_duplicate: boolean };
@@ -264,6 +274,13 @@ export const writeTools: McpTool<McpToolContext>[] = [
         if (lookupError) rpcFailure("La vérification des doublons", lookupError);
         const twin = (similar ?? []).find((expense) => lower(String(expense.description)) === lower(p.description));
         if (twin) throw new McpToolError(`Une dépense identique existe déjà (même date, montant et description) : ${origin}/depenses/${twin.id}. Demandez à l’utilisatrice avant d’en créer une seconde (allow_duplicate).`);
+        if (p.externalReference && p.supplierId) {
+          const { data: sameSupplier, error: referenceError } = await supabase.from("expenses").select("id,reference,external_reference,status").eq("business_id", businessId).eq("supplier_id", p.supplierId).neq("status", "cancelled");
+          if (referenceError) rpcFailure("La vérification des doublons", referenceError);
+          const wanted = normalizeExternalReference(p.externalReference);
+          const sameOrder = (sameSupplier ?? []).find((expense) => typeof expense.external_reference === "string" && normalizeExternalReference(expense.external_reference) === wanted);
+          if (sameOrder) throw new McpToolError(`Une dépense avec le numéro « ${p.externalReference} » existe déjà chez ce fournisseur (${sameOrder.reference ?? sameOrder.id}) : ${origin}/depenses/${sameOrder.id}. Si la commande est volontairement saisie en plusieurs dépenses, demandez à l’utilisatrice avant d’utiliser allow_duplicate.`);
+        }
       }
       const { data: id, error } = await supabase.rpc("create_expense_draft", { p_business_id: businessId, p_purchased_on: p.purchasedOn, p_due_on: p.dueOn || null, p_supplier_id: p.supplierId || null, p_category: p.category, p_subcategory: p.subcategory || null, p_nature: p.nature, p_cost_behavior: p.costBehavior, p_description: p.description, p_external_reference: p.externalReference || null, p_total_amount_cents: p.totalAmount, p_professional_share_basis_points: p.professionalShare, p_notes: p.notes || null });
       if (error) rpcFailure("La dépense", error);

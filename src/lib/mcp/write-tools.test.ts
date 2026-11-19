@@ -91,6 +91,39 @@ describe("outils d’écriture du connecteur", () => {
     expect(rpc).toHaveBeenCalledTimes(1);
   });
 
+  it("bloque un numéro de commande déjà saisi chez le même fournisseur sauf confirmation explicite", async () => {
+    similarExpenses = [{ id: "dep-2", reference: "DEP-2026-0042", external_reference: "CMD 1234", status: "validated" }];
+    const order = { description: "Fermoirs", purchased_on: "2026-11-12", total_amount: "12", category: "raw_materials", supplier: "Perles & Co", external_reference: "cmd1234" };
+    const blocked = await call("create_expense_draft", order);
+    expect(blocked.isError).toBe(true);
+    expect(blocked.text).toContain("DEP-2026-0042");
+    expect(rpc).not.toHaveBeenCalled();
+    await call("create_expense_draft", { ...order, allow_duplicate: true });
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("n’applique pas l’anti-doublon de commande sans fournisseur ni à un autre numéro", async () => {
+    similarExpenses = [{ id: "dep-2", reference: "DEP-2026-0042", external_reference: "CMD-1234", status: "draft" }];
+    await call("create_expense_draft", { description: "Fermoirs", purchased_on: "2026-11-12", total_amount: "12", category: "raw_materials", external_reference: "CMD-1234" });
+    await call("create_expense_draft", { description: "Fermoirs", purchased_on: "2026-11-12", total_amount: "12", category: "raw_materials", supplier: "Perles & Co", external_reference: "CMD-1235" });
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it("modifie une matière archivée sans la réactiver, mais ne l’accepte pas dans une recette", async () => {
+    queries.listMaterials.mockResolvedValue([material({ id: "00000000-0000-4000-8000-000000000009", name: "Perle ancienne", internal_reference: "AC16", is_active: false })]);
+    const updated = await call("update_material", { material: "AC16", reference: "AC-016" });
+    expect(updated.isError).toBe(false);
+    expect(rpc).toHaveBeenCalledWith("update_material", expect.objectContaining({ p_material_id: "00000000-0000-4000-8000-000000000009", p_internal_reference: "AC-016", p_is_active: false }));
+    const recipe = await call("create_product", { name: "Bague", sale_price: "20", recipe: [{ material: "AC-016", quantity: "1" }] });
+    expect(recipe.isError).toBe(true);
+  });
+
+  it("préfère la matière active quand une archivée porte le même nom", async () => {
+    queries.listMaterials.mockResolvedValue([material({ id: "00000000-0000-4000-8000-000000000009", is_active: false }), material({})]);
+    await call("update_material", { material: "Chaîne forçat", notes: "Lot de novembre" });
+    expect(rpc).toHaveBeenCalledWith("update_material", expect.objectContaining({ p_material_id: "00000000-0000-4000-8000-000000000001", p_notes: "Lot de novembre" }));
+  });
+
   it("exige un fournisseur existant pour une charge récurrente", async () => {
     const result = await call("create_recurring_charge", { description: "Shopify", estimated_amount: "36", frequency: "monthly", category: "software", supplier: "Shopify" });
     expect(result.isError).toBe(true);
