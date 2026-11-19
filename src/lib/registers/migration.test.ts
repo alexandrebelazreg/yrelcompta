@@ -32,6 +32,7 @@ describe("migration registres et déclarations", () => {
       "20261115120000_shopify_dedup_autolink.sql",
       "20261119120000_receipt_inbox.sql",
       "20261119140000_material_photos.sql",
+      "20261119160000_material_purchases.sql",
     ]);
   });
 

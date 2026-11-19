@@ -97,9 +97,13 @@ export function MaterialForm({ material, suppliers, colors, categories, referenc
         <label htmlFor={`unit-${key}`}>Unité de consommation</label>
         <select className="input" id={`unit-${key}`} name="unit" defaultValue={material?.unit ?? "piece"}>{Object.entries(materialUnitLabels).map(([unit, label]) => <option key={unit} value={unit}>{label}</option>)}</select>
       </div>
-      <Field name="packageQuantity" id={`quantity-${key}`} label="Quantité du lot" inputMode="decimal" defaultValue={material ? formatMilliunits(material.package_quantity_milliunits) : ""} required error={state.fieldErrors?.packageQuantity?.[0]}/>
-      <Field name="packageCost" id={`cost-${key}`} label="Coût TTC du lot (€)" inputMode="decimal" defaultValue={material ? money(material.package_cost_cents) : ""} required error={state.fieldErrors?.packageCost?.[0]}/>
+      {/* Une fois créée, le lot vient de l’historique d’achats (achat compté le plus cher) : il n’est plus saisi ici. */}
+      <Field name="packageQuantity" id={`quantity-${key}`} label={material ? "Quantité du lot retenu" : "Quantité du premier lot"} inputMode="decimal" defaultValue={material ? formatMilliunits(material.package_quantity_milliunits) : ""} readOnly={Boolean(material)} required error={state.fieldErrors?.packageQuantity?.[0]}/>
+      <Field name="packageCost" id={`cost-${key}`} label={material ? "Coût TTC du lot retenu (€)" : "Coût TTC du premier lot, frais compris (€)"} inputMode="decimal" defaultValue={material ? money(material.package_cost_cents) : ""} readOnly={Boolean(material)} required error={state.fieldErrors?.packageCost?.[0]}/>
     </div>
+    {material
+      ? <p className="compact-secondary-text">Le lot et le coût viennent de l’historique d’achats ci-dessous : l’achat compté au coût unitaire le plus élevé est retenu.</p>
+      : <p className="compact-secondary-text">Ce premier lot devient le premier achat de l’historique (« reprise de la fiche »).</p>}
     <TextareaField name="notes" id={`notes-${key}`} label="Notes" defaultValue={material?.notes ?? ""} maxLength={2000}/>
     <label><input type="checkbox" name="isActive" defaultChecked={material?.is_active ?? true}/> Matière active</label>
     <FormMessage message={state.error}/>

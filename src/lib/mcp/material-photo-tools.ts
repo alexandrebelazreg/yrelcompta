@@ -11,7 +11,7 @@ import { fetchPublicFile } from "./safe-fetch";
 const lower = (value: string) => value.trim().toLocaleLowerCase("fr");
 
 /** Matière active ou archivée, par identifiant, référence ou nom exact ; une active l'emporte à égalité. */
-function findAnyMaterial(materials: Material[], key: string): Material {
+export function findAnyMaterial(materials: Material[], key: string): Material {
   const needle = lower(key);
   const candidates = materials.filter((material) => material.id === key || lower(material.name) === needle || (material.internal_reference && lower(material.internal_reference) === needle));
   const matches = candidates.length > 1 ? candidates.filter((material) => material.is_active) : candidates;
