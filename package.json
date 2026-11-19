@@ -22,6 +22,7 @@
     "pdfkit": "^0.19.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "unpdf": "2.1.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
