@@ -7,13 +7,15 @@ import { salesReadTools, salesWriteTools } from "@/lib/mcp/sales-tools";
 import { managementTools } from "@/lib/mcp/management-tools";
 import { writeTools } from "@/lib/mcp/write-tools";
 import { receiptTools } from "@/lib/mcp/receipt-tools";
+import { materialPhotoTools } from "@/lib/mcp/material-photo-tools";
+import { materialPurchaseTools } from "@/lib/mcp/material-purchase-tools";
 import { runWithSupabaseClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 // Assez pour un justificatif de 1 Mio encodé en base64 (upload_receipt), enveloppe JSON comprise.
 const MAX_BODY_BYTES = 1_500_000;
-const tools = [...readOnlyTools, ...salesReadTools, ...writeTools, ...salesWriteTools, ...managementTools, ...receiptTools];
+const tools = [...readOnlyTools, ...salesReadTools, ...writeTools, ...salesWriteTools, ...managementTools, ...receiptTools, ...materialPhotoTools, ...materialPurchaseTools];
 
 // Transport « Streamable HTTP » sans état : chaque POST reçoit une réponse JSON.
 // L'authentification repose uniquement sur le jeton Bearer (aucun cookie), ce qui exclut le CSRF.

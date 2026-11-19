@@ -8,6 +8,7 @@ import { materialUnitLabels } from "@/lib/products/labels";
 import { listMaterialCategories, listMaterials, listProducts } from "@/lib/products/queries";
 import { suggestNextReference, suggestReferencePrefix } from "@/lib/products/references";
 import { materialSchema, parseQuantityToMilliunits, productSchema } from "@/lib/products/validation";
+import { MATERIAL_LOT_FROM_PURCHASES_MESSAGE } from "@/lib/products/purchases";
 import { formatEuroCents } from "@/lib/sales/calculations";
 import { getTodayInParis } from "@/lib/utils/date";
 import type { Material } from "@/types/products";
@@ -31,6 +32,7 @@ const professionalShare = z.number().min(0).max(100).describe("Part professionne
 function rpcFailure(label: string, error: { code?: string; message?: string }): never {
   console.error("Écriture du connecteur refusée", { label, code: error.code });
   if (error.message === "material unit is immutable once used") throw new McpToolError(MATERIAL_UNIT_IMMUTABLE_MESSAGE);
+  if (error.message === "material lot comes from purchases") throw new McpToolError(`${MATERIAL_LOT_FROM_PURCHASES_MESSAGE} Outils : add_material_purchase, update_material_purchase.`);
   if (error.code === "42501") throw new McpToolError("Accès refusé à cette entreprise.");
   if (error.code === "23505") throw new McpToolError("Cet élément existe déjà : un nom, une référence, un SKU ou un préfixe identique est déjà utilisé.");
   if (error.code === "P0002") throw new McpToolError("L’élément demandé est introuvable.");
@@ -118,7 +120,7 @@ export const writeTools: McpTool<McpToolContext>[] = [
     name: "create_material",
     kind: "write",
     title: "Créer une matière",
-    description: "Crée une matière ou un composant avec son lot d’achat. Crée au besoin la catégorie et le fournisseur, et attribue la prochaine référence de la catégorie.",
+    description: "Crée une matière ou un composant avec son premier lot d’achat, enregistré comme premier achat de l’historique (« reprise de la fiche »). Crée au besoin la catégorie et le fournisseur, et attribue la prochaine référence de la catégorie. Ajoutez ensuite les vrais achats avec add_material_purchase.",
     input: z.object(materialFields),
     run: async (input, { supabase, businessId }) => {
       const data = input as z.infer<z.ZodObject<typeof materialFields>>;
