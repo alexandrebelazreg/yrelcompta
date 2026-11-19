@@ -27,7 +27,7 @@ export const readOnlyTools: McpTool<McpSession>[] = [
   {
     name: "list_materials",
     title: "Matières et composants",
-    description: "Liste les matières (chaînes, perles, fermoirs…) avec catégorie, couleur, référence, fournisseur, lot d’achat et coût indicatif par unité.",
+    description: "Liste les matières (chaînes, perles, fermoirs…) avec catégorie, couleur, référence, fournisseur, lot d’achat, coût indicatif par unité et présence d’une photo.",
     input: z.object({ search, category: z.string().trim().max(60).optional().describe("Nom de catégorie de matière."), include_archived: includeArchived }),
     run: async (input, { businessId }) => {
       const { search: needle, category, include_archived } = input as { search?: string; category?: string; include_archived?: boolean };
@@ -42,6 +42,7 @@ export const readOnlyTools: McpTool<McpSession>[] = [
           couleur: material.color,
           reference: material.internal_reference,
           fournisseur: material.suppliers?.name ?? null,
+          photo: Boolean(material.photo_path),
           unite: materialUnitLabels[material.unit],
           quantite_du_lot: formatMilliunits(material.package_quantity_milliunits),
           cout_du_lot: formatEuroCents(material.package_cost_cents),
