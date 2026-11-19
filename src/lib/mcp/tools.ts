@@ -46,6 +46,7 @@ export const readOnlyTools: McpTool<McpSession>[] = [
           quantite_du_lot: formatMilliunits(material.package_quantity_milliunits),
           cout_du_lot: formatEuroCents(material.package_cost_cents),
           cout_indicatif_par_unite: `${formatIndicativeUnitCost(material.package_cost_cents, material.package_quantity_milliunits)} €`,
+          notes: material.notes,
           active: material.is_active,
         }));
     },
